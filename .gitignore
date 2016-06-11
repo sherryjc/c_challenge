@@ -1,4 +1,7 @@
 x64
 .vs
 cryptopals.VC.opendb
+*.o
+*.exe
+
 

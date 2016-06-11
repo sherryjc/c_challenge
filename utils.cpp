@@ -1,10 +1,10 @@
 
-
+#include <stdio.h>
 #include "utils.h"
 
-static void logError(const wchar_t* str)
+static void logError(const char* str)
 {
-	fwprintf_s(stderr, _T("Error: %s\n"), str);
+	fprintf(stderr, "Error: %s\n", str);
 }
 
 static byte _hexByte(char c)
@@ -34,13 +34,12 @@ static char _byteToHexDigit(byte b)
 	return b + '0';
 }
 
-std::unique_ptr<byte[]> io_utils::readBinFile(const wchar_t* pFileName, size_t& outSz)
+std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& outSz)
 {
 	outSz = 0;
-	FILE * pFile = nullptr;
-	errno_t err = _wfopen_s(&pFile, pFileName, _T("rb"));
-	if (nullptr == pFile || err != 0) { 
-		logError(_T("_wfopen_s")); 
+	FILE* pFile = fopen(pFileName, "rb");
+	if (nullptr == pFile) { 
+		logError(_T("fopen")); 
 		return nullptr; 
 	}
 
@@ -67,6 +66,7 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const wchar_t* pFileName, size_t& 
 	return pBuffer;
 }
 
+#if 0
 std::unique_ptr<wchar_t[]> io_utils::readTextFileW(const wchar_t* pFileName, int encoding)
 {
 	FILE * pFile = nullptr;
@@ -99,13 +99,13 @@ std::unique_ptr<wchar_t[]> io_utils::readTextFileW(const wchar_t* pFileName, int
 	fclose(pFile);
 	return pBuffer;
 }
+#endif
 
-std::unique_ptr<char[]> io_utils::readTextFileA(const wchar_t* pFileName)
+std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
 {
-	FILE * pFile = nullptr;
-	errno_t err = _wfopen_s(&pFile, pFileName, _T("r"));
-	if (nullptr == pFile || err != 0) {
-		logError(_T("_wfopen_s"));
+	FILE * pFile = fopen(pFileName, "r");
+	if (nullptr == pFile) {
+		logError(_T("fopen"));
 		return nullptr;
 	}
 
@@ -132,23 +132,22 @@ std::unique_ptr<char[]> io_utils::readTextFileA(const wchar_t* pFileName)
 	return pBuffer;
 }
 
-size_t io_utils::writeBinFile(const wchar_t* pFileName, const char* pBuffer, size_t cch)
+size_t io_utils::writeBinFile(const char* pFileName, const char* pBuffer, size_t cch)
 {
 	return writeTextFileA(pFileName, pBuffer, cch, true);
 }
 
-size_t io_utils::writeTextFileA(const wchar_t* pFileName, const char* pBuffer, size_t cch, bool bRaw)
+size_t io_utils::writeTextFileA(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw)
 {
-	FILE * pFile = nullptr;
-	errno_t err = _wfopen_s(&pFile, pFileName, bRaw ? L"wb" : L"w");
-	if (nullptr == pFile || err != 0) {
-		logError(L"_wfopen_s");
+	FILE * pFile = fopen(pFileName, bRaw ? "wb" : "w");
+	if (nullptr == pFile) {
+		logError("fopen");
 		return 0;
 	}
 
 	size_t itemsWritten = fwrite(pBuffer, sizeof(char), cch, pFile);
 	if (itemsWritten != cch) {
-		logError(L"fread");
+		logError("fread");
 	}
 	fclose(pFile);
 	return itemsWritten;
@@ -168,7 +167,7 @@ static const char b64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv
 static char _idxToB64(size_t idx)
 {
 	if (idx >= _countof(b64Table)) {
-		logError(L"Bad arg to _idxToB64");
+		logError("Bad arg to _idxToB64");
 		return 0x7f;
 	}
 	return b64Table[idx];
@@ -183,7 +182,7 @@ static byte _b64ToIdx(char c)
 		return c - 'a' + 26;
 	}
 	if (c >= '0' && c <= '9') {
-		return c - 'a' + 52;
+		return c - '0' + 52;
 	}
 	if (c == '+') {
 		return 62;  // 26 + 26 + 10
@@ -195,7 +194,7 @@ static byte _b64ToIdx(char c)
 		// Padding char
 		return 0xff;
 	}
-	logError(L"Bad arg to _b64ToIdx");
+	logError("Bad arg to _b64ToIdx");
 	return 0xff;
 }
 
@@ -229,8 +228,8 @@ std::unique_ptr<char[]> crypto_utils::binToHex(const byte* pBuf, size_t inCnt, s
 	std::unique_ptr<char[]>pOutBuf = std::unique_ptr<char[]>(new char[inCnt*2 + 1]);
 	for (size_t i = 0; i < inCnt; i++) {
 		byte b = pBuf[i];
-		byte b0 = b & 0xf;  // lower nibble 
-		byte b1 = b >> 4;   // upper nibble 
+		byte b0 = b & 0xf;  		// lower nibble 
+		byte b1 = (b >> 4) & 0xf;	// upper nibble 
 		pOutBuf[outCnt++] = _byteToHexDigit(b1);
 		pOutBuf[outCnt++] = _byteToHexDigit(b0);
 	}
@@ -284,13 +283,13 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 	// Make sure CR-LF have been stripped from input
 	// See if we need to allow for non-multiples of 4
 	if (inCnt % 4) {
-		logError(L"Input to base64ToBin");
+		logError("Input to base64ToBin");
 		return nullptr;
 	}
 
 	size_t groups = inCnt / 4;
 	std::unique_ptr<byte[]>pOutBuf = std::unique_ptr<byte[]>(new byte[groups*3]);
-	size_t ib = 0;
+	int ib = 0;
 	outCnt = 0;
 	for (size_t i = 0; i < groups - 1; i++) {
 		byte i0 = _b64ToIdx(pB64Buf[ib++]);
@@ -298,8 +297,8 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 		byte i2 = _b64ToIdx(pB64Buf[ib++]);
 		byte i3 = _b64ToIdx(pB64Buf[ib++]);
 
-		pOutBuf[outCnt++] = i0 << 2 | i1 >> 4;
-		pOutBuf[outCnt++] = i1 << 4 | i2 >> 2;
+		pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
+		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
 		pOutBuf[outCnt++] = i2 << 6 | i3;
 	}
 	// Handle last group separately - extra checking for padding chars
@@ -308,23 +307,23 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 	byte i2 = _b64ToIdx(pB64Buf[ib++]);
 	byte i3 = _b64ToIdx(pB64Buf[ib++]);
 
-	pOutBuf[outCnt++] = i0 << 2 | i1 >> 4;
+	pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
 	if (i2 == 0xff) {
-		pOutBuf[outCnt++] = i1 << 4;
+		pOutBuf[outCnt++] = (i1 << 4) & 0x3;
 	}
 	else if (i3 == 0xff) {
-		pOutBuf[outCnt++] = i1 << 4 | i2 >> 2;
+		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
 		pOutBuf[outCnt++] = i2 << 6;
 	}
 	else {
-		pOutBuf[outCnt++] = i1 << 4 | i2 >> 2;
+		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
 		pOutBuf[outCnt++] = i2 << 6 | i3;
 	}
 
 	return pOutBuf;
 }
 
-bool crypto_utils::convHexToBase64(const wchar_t* pHexFile, const wchar_t* pBase64File)
+bool crypto_utils::convHexToBase64(const char* pHexFile, const char* pBase64File)
 {
 	std::unique_ptr<char[]>pHexBuf = io_utils::readTextFileA(pHexFile);
 	if (!pHexBuf) {
@@ -350,7 +349,7 @@ bool crypto_utils::convHexToBase64(const wchar_t* pHexFile, const wchar_t* pBase
 	return nWritten == ostr.length();
 }
 
-bool crypto_utils::convBase64ToHex(const wchar_t* pBase64File, const wchar_t* pHexFile)
+bool crypto_utils::convBase64ToHex(const char* pBase64File, const char* pHexFile)
 {
 	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileA(pBase64File);
 	if (!pBase64Buf) {

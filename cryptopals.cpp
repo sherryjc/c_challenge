@@ -4,9 +4,9 @@
 #include "stdafx.h"
 #include "utils.h"
 
-static const wchar_t* pHexFile = _T("./data/set1/challenge1/input.hex");
-static const wchar_t* pOutBase64 = _T("./data/set1/challenge1/outputB64.hex");
-static const wchar_t* pHexFile2 = _T("./data/set1/challenge1/roundtrip.hex");
+static const char* pHexFile = "./data/set1/challenge1/input.hex";
+static const char* pOutBase64 = "./data/set1/challenge1/outputB64.hex";
+static const char* pHexFile2 = "./data/set1/challenge1/roundtrip.hex";
 
 int _tmain(int argc, _TCHAR* argv[])
 {

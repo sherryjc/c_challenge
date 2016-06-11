@@ -1,0 +1,1 @@
+Difference in compareEncrypted.txt vs. encrypted.txt: \n\r vs. \n introduces extra character on Windows.

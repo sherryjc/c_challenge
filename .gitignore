@@ -1,7 +1,10 @@
 x64
 .vs
 cryptopals.VC.opendb
+cryptopals.sdf
 *.o
 *.exe
+.klocwork
+
 
 

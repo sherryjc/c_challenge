@@ -2,10 +2,8 @@
 #include <stdio.h>
 #include "utils.h"
 
-static void logError(const char* str)
-{
-	fprintf(stderr, "Error: %s\n", str);
-}
+
+
 
 static byte _hexByte(char c)
 {
@@ -29,9 +27,14 @@ static char _byteToHexDigit(byte b)
 		return '?';
 	}
 	if (b >= 0xa) {
-		return b - 0xa + 'A';
+		return b - 0xa + 'a';
 	}
 	return b + '0';
+}
+
+void io_utils::logError(const char* str)
+{
+	fprintf(stderr, "Error: %s\n", str);
 }
 
 std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& outSz)
@@ -39,7 +42,7 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& out
 	outSz = 0;
 	FILE* pFile = fopen(pFileName, "rb");
 	if (nullptr == pFile) { 
-		logError(_T("fopen")); 
+		logError("fopen"); 
 		return nullptr; 
 	}
 
@@ -51,7 +54,7 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& out
 	// allocate memory to contain the whole file:
 	std::unique_ptr<byte[]>pBuffer = std::unique_ptr<byte[]>(new byte[lSize]);
 	if (nullptr == pBuffer) { 
-		logError(_T("new")); 
+		logError("new"); 
 		fclose(pFile);
 		return nullptr; 
 	}
@@ -59,7 +62,7 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& out
 	// copy the file into the buffer:
 	size_t itemsRead = fread(pBuffer.get(), 1, lSize, pFile);
 	if (itemsRead != lSize) { 
-		logError(_T("fread")); 
+		logError("fread"); 
 	}
 	outSz = itemsRead;
 	fclose(pFile);
@@ -105,7 +108,7 @@ std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
 {
 	FILE * pFile = fopen(pFileName, "r");
 	if (nullptr == pFile) {
-		logError(_T("fopen"));
+		logError("fopen");
 		return nullptr;
 	}
 
@@ -117,7 +120,7 @@ std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
 	// allocate memory to contain the whole file:
 	std::unique_ptr<char[]>pBuffer = std::unique_ptr<char[]>(new char[lSize+1]);
 	if (nullptr == pBuffer) {
-		logError(_T("new"));
+		logError("new");
 		fclose(pFile);
 		return nullptr;
 	}
@@ -125,7 +128,7 @@ std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
 	// copy the file into the buffer:
 	size_t itemsRead = fread(pBuffer.get(), sizeof(char), lSize, pFile);
 	if (itemsRead != lSize) {
-		logError(_T("fread"));
+		logError("fread");
 	}
 	pBuffer[itemsRead] = '\0';
 	fclose(pFile);
@@ -162,12 +165,33 @@ size_t io_utils::writeTextFileA(const char* pFileName, const char* pBuffer, size
 /*****************************************/
 
 
+// Table of Base64 Indexes
 static const char b64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Table of weighted frequency values for ANSI characters in English text
+static const int vASNIEnFreqPoints[] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, -1, -1, 0, -1, -1,          // 0x00-0x0f
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,       // 0x10-0x1f
+	100, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 1, 10, 1,                   // 0x20-0x2f
+	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1,             // 0x30-0x3f
+	1, 81, 15, 27, 42, 127, 22, 20, 61, 70, 1, 7, 40, 24, 67, 75,         // 0x40-0x4f
+	19, 1, 59, 63, 90, 27, 9, 23, 1, 2, 1, 1, 0, 1, 0, 0,                 // 0x50-0x5f
+	1, 81, 15, 27, 42, 127, 22, 20, 61, 70, 1, 7, 40, 24, 67, 75,         // 0x60-0x6f
+	19, 1, 59, 63, 90, 27, 9, 23, 1, 2, 1, 1, 0, 0, 0, -1                 // 0x70-0x7f
+};
+
+static int getANSIEnFreqPoints(size_t index)
+{
+	if (index >= _countof(vASNIEnFreqPoints)) {
+		return -1;
+	}
+	return vASNIEnFreqPoints[index];
+}
 
 static char _idxToB64(size_t idx)
 {
 	if (idx >= _countof(b64Table)) {
-		logError("Bad arg to _idxToB64");
+		io_utils::logError("Bad arg to _idxToB64");
 		return 0x7f;
 	}
 	return b64Table[idx];
@@ -194,7 +218,7 @@ static byte _b64ToIdx(char c)
 		// Padding char
 		return 0xff;
 	}
-	logError("Bad arg to _b64ToIdx");
+	io_utils::logError("Bad arg to _b64ToIdx");
 	return 0xff;
 }
 
@@ -234,6 +258,24 @@ std::unique_ptr<char[]> crypto_utils::binToHex(const byte* pBuf, size_t inCnt, s
 		pOutBuf[outCnt++] = _byteToHexDigit(b0);
 	}
 	pOutBuf[outCnt] = '\0';
+	return pOutBuf;
+}
+
+std::unique_ptr<char[]> crypto_utils::binToTxtANSI(const byte* pBuf, size_t inCnt, size_t& outCnt)
+{
+	if (!pBuf || inCnt == 0) {
+		return nullptr;
+	}
+	std::unique_ptr<char[]>pOutBuf = std::unique_ptr<char[]>(new char[inCnt + 1]);
+	for (size_t i = 0; i < inCnt; i++) {
+		if (pBuf[i] > 0x7f) {
+			pOutBuf[i] = '.';
+		}
+		else {
+			pOutBuf[i] = static_cast<char>(pBuf[i]);
+		}
+	}
+	pOutBuf[inCnt] = '\0';
 	return pOutBuf;
 }
 
@@ -283,7 +325,7 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 	// Make sure CR-LF have been stripped from input
 	// See if we need to allow for non-multiples of 4
 	if (inCnt % 4) {
-		logError("Input to base64ToBin");
+		io_utils::logError("Input to base64ToBin");
 		return nullptr;
 	}
 
@@ -373,4 +415,23 @@ bool crypto_utils::convBase64ToHex(const char* pBase64File, const char* pHexFile
 	size_t nWritten = io_utils::writeTextFileA(pHexFile, ostr.c_str(), ostr.length());
 
 	return nWritten == ostr.length();
+}
+
+int crypto_utils::rateANSI(byte* pByteArray, size_t cnt)
+{
+	int score = 0;
+	if (nullptr == pByteArray || cnt == 0) {
+		return score;
+	}
+
+	for (int i = 0; i < cnt; i++) {
+		int cRating = getANSIEnFreqPoints(pByteArray[i]);
+		if (cRating < 0) {
+			return 0;
+		}
+		score += cRating;
+	}
+
+	// Return total score normalized by buffer length
+	return (score*100)/cnt;
 }

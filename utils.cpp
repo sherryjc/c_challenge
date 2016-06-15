@@ -92,7 +92,7 @@ std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
 
 	// copy the file into the buffer:
 	size_t itemsRead = fread(pBuffer.get(), sizeof(char), lSize, pFile);
-	if (itemsRead != lSize) {
+	if (itemsRead == 0) {   // itemsRead might not == lSize due to \n\r issues
 		logError("fread");
 	}
 	pBuffer[itemsRead] = '\0';
@@ -456,4 +456,37 @@ std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const byte* pInBuf,
 	std::unique_ptr<char[]> pBestStr = crypto_utils::binToTxtANSI(pTb, inCnt, outCnt);
 	o_score = highestScore;
 	return pBestStr;
+}
+
+
+std::unique_ptr<byte[]> crypto_utils::encryptRepeatingKey(const std::string& text, const std::string& key, size_t& outCnt)
+{
+	std::unique_ptr<byte[]> pBytes = std::unique_ptr<byte[]>(new byte[text.length()]);
+	outCnt = text.length();
+	const char* pTxt = text.c_str();
+	const char* pKey = key.c_str();
+	size_t keyLen = key.length();
+	for (size_t idx = 0; idx < text.length(); idx++) {
+		pBytes[idx] = pTxt[idx] ^ pKey[idx%keyLen];
+	}
+	return pBytes;
+}
+
+
+std::unique_ptr<char[]> crypto_utils::decryptRepeatingKey(const byte* pBuf, const size_t bufCnt, const std::string& key)
+{
+	if (!pBuf || bufCnt == 0 || key.length() == 0) {
+		return nullptr;
+	}
+
+	std::unique_ptr<char[]> pTxt = std::unique_ptr<char[]>(new char[bufCnt+1]);
+	char* pT = pTxt.get();
+	const char* pKey = key.c_str();
+	size_t keyLen = key.length();
+
+	for (size_t idx = 0; idx < bufCnt; idx++) {
+		pT[idx] = pBuf[idx] ^ pKey[idx%keyLen];
+	}
+	pT[bufCnt] = '\0';
+	return pTxt;
 }

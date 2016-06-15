@@ -129,3 +129,39 @@ bool Challenges::Set1Ch4()
 
 	return true;
 }
+
+bool Challenges::Set1Ch5()
+{
+	// Implement repeating-key XOR
+	static const char* pFilename = "./data/set1/challenge5/input.txt";
+	static const char* outputFile = "./data/set1/challenge5/encrypted.txt";
+	static const char* outputFile2 = "./data/set1/challenge5/decrypted.txt";
+
+	std::unique_ptr<char[]> pTxt = io_utils::readTextFileA(pFilename);
+	if (!pTxt) {
+		return false;
+	}
+
+	std::string key("ICE");
+	size_t encBufCnt = 0;
+	std::unique_ptr<byte[]> pEncBuf = crypto_utils::encryptRepeatingKey(std::string(pTxt.get()), key, encBufCnt);
+	if (!pEncBuf || encBufCnt == 0) {
+		return false;
+	}
+	size_t hexCnt = 0;
+	std::unique_ptr<char[]> pHexBuf = crypto_utils::binToHex(pEncBuf.get(), encBufCnt, hexCnt);
+	if (hexCnt == 0 || !pHexBuf) {
+		return false;
+	}
+
+	std::string ostr(pHexBuf.get());
+	size_t nWritten = io_utils::writeTextFileA(outputFile, ostr.c_str(), ostr.length());
+
+	bool bRc = (nWritten == ostr.length());
+
+	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pEncBuf.get(), encBufCnt, key);
+	std::string ostr2(pRoundTrip.get());
+	nWritten = io_utils::writeTextFileA(outputFile2, pRoundTrip.get(), ostr2.length());
+	bRc &= (nWritten == ostr2.length());
+	return bRc;
+}

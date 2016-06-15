@@ -34,4 +34,8 @@ namespace crypto_utils {
 	int rateANSI(byte* pByteArray, size_t cnt);
 	std::unique_ptr<char[]> checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, int& o_score);
 	std::unique_ptr<char[]> checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, int& o_score);
+
+	std::unique_ptr<byte[]> encryptRepeatingKey(const std::string& text, const std::string& key, size_t& outCnt);
+	std::unique_ptr<char[]> decryptRepeatingKey(const byte* pBuf, const size_t bufCnt, const std::string& key);
+
 }

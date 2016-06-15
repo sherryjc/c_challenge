@@ -11,7 +11,8 @@
 #include <tchar.h>
 #include <memory>
 #include <string>
-
+#include <fstream>
+#include <vector>
 
 
 // TODO: reference additional headers your program requires here

@@ -3,6 +3,7 @@
  *
  */
 
+
 #include "challenges.h"
 #include "utils.h"
 
@@ -72,36 +73,59 @@ bool Challenges::Set1Ch3()
 		return false;
 	}
 	std::string s1(pTxtBuf.get());
-	size_t bin1Cnt = 0;
-	std::unique_ptr<byte[]> pBinBuf = crypto_utils::hexToBin(pTxtBuf.get(), s1.length(), bin1Cnt);
-
-	byte* pBestArray = nullptr;
-	int highestScore = 0;
-	byte bestX = 0;
-	std::unique_ptr<byte[]> pTestBuf = std::unique_ptr<byte[]>(new byte[bin1Cnt]);
-	byte* pTb = pTestBuf.get();
-	byte* pInBuf = pBinBuf.get();
-
-	for (size_t key = 0; key <= 0xff; key++) {
-		byte xval = key & 0xff;
-		for (size_t i = 0; i < bin1Cnt; i++) {
-			pTb[i] = (pInBuf[i] ^ xval);
-		}
-		int score = crypto_utils::rateANSI(pTb, bin1Cnt);
-		if (score > highestScore) {
-			bestX = xval;
-			highestScore = score;
-		}
-	}
-	
-	// Re-compute best entry - faster than making copies at each step (?)
-	for (size_t i = 0; i < bin1Cnt; i++) {
-		pTb[i] = (pBinBuf[i] ^ bestX);
-	}
-	size_t outCnt = 0;
-	std::unique_ptr<char[]> pDecodedStr = crypto_utils::binToTxtANSI(pTb, bin1Cnt, outCnt);
+	int score = 0;
+	std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pTxtBuf.get(), s1.length(), score);
 
 	printf("Decoded string: %s", pDecodedStr.get());
+
+	return true;
+}
+
+class ScoredString
+{
+public:
+	ScoredString(const char* pChars, int score) : m_str(pChars), m_score(score) {}
+	const std::string& StrRef() const { return m_str; }
+	int Score() const { return m_score; }
+private:
+	std::string	m_str;
+	int			m_score;
+};
+
+using ScoredStrings = std::vector<ScoredString>;
+
+
+bool Challenges::Set1Ch4()
+{
+	// Detect single-byte XOR encryption
+
+	static const char* input = "./data/set1/challenge4/c4.txt";
+	std::ifstream infile(input);
+	std::string line;
+	ScoredStrings results;
+	while (std::getline(infile, line))
+	{
+		size_t byteCnt = 0;
+		int score = 0;
+		std::unique_ptr<byte[]> pBytes = crypto_utils::hexToBin(line.c_str(), line.length(), byteCnt);
+		std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pBytes.get(), byteCnt, score);
+		results.emplace_back(ScoredString(pDecodedStr.get(), score));
+	}
+
+	size_t bestIndex = 0, index = 0;
+	int bestScore = 0;
+	for (auto ss : results) {
+		if (ss.Score() > bestScore) {
+			bestIndex = index;
+			bestScore = ss.Score();
+		}
+		index++;
+	}
+	if (bestIndex >= results.size()) {
+		return false;
+	}
+
+	printf("Best score %d: %s\n", results[bestIndex].Score(), results[bestIndex].StrRef().c_str());
 
 	return true;
 }

@@ -14,7 +14,6 @@ namespace io_utils {
 
 	std::unique_ptr<byte[]> readBinFile(const char* pFileName, size_t& outSz);
 	std::unique_ptr<char[]> readTextFileA(const char* pFileName);
-	//std::unique_ptr<wchar_t[]> readTextFileW(const wchar_t* pFileName, int encoding);
 	size_t writeBinFile(const char* pFileName, const char* pBuffer, size_t cch);
 	size_t writeTextFileA(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw=false);
 
@@ -33,5 +32,6 @@ namespace crypto_utils {
 	bool convBase64ToHex(const char* pBase64File, const char* pHexFile);
 
 	int rateANSI(byte* pByteArray, size_t cnt);
-
+	std::unique_ptr<char[]> checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, int& o_score);
+	std::unique_ptr<char[]> checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, int& o_score);
 }

@@ -69,41 +69,6 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& out
 	return pBuffer;
 }
 
-#if 0
-std::unique_ptr<wchar_t[]> io_utils::readTextFileW(const wchar_t* pFileName, int encoding)
-{
-	FILE * pFile = nullptr;
-	// TODO: handle encoding
-	errno_t err = _wfopen_s(&pFile, pFileName, _T("r"));
-	if (nullptr == pFile || err != 0) {
-		logError(_T("_wfopen_s"));
-		return nullptr;
-	}
-
-	// obtain file size:
-	fseek(pFile, 0, SEEK_END);
-	long lSize = ftell(pFile);
-	rewind(pFile);
-
-	// allocate memory to contain the whole file:
-	std::unique_ptr<wchar_t[]>pBuffer = std::unique_ptr<wchar_t[]>(new wchar_t[lSize]);
-	if (nullptr == pBuffer) {
-		logError(_T("new"));
-		fclose(pFile);
-		return nullptr;
-	}
-
-	// copy the file into the buffer:
-	size_t itemsRead = fread(pBuffer.get(), 1, lSize, pFile);
-	if (itemsRead != lSize) {
-		logError(_T("fread"));
-	}
-
-	fclose(pFile);
-	return pBuffer;
-}
-#endif
-
 std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
 {
 	FILE * pFile = fopen(pFileName, "r");
@@ -433,5 +398,62 @@ int crypto_utils::rateANSI(byte* pByteArray, size_t cnt)
 	}
 
 	// Return total score normalized by buffer length
-	return (score*100)/cnt;
+	return static_cast<int>((score*100)/cnt);
+}
+
+std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, int& o_score)
+{
+	// XOR the given text buffer against all possible single-byte keys
+	// and return one with the highest ANSI frequency rating.
+	// The rating score is returned in the output argument o_score.
+	// The input array is hex encoded characters.
+
+	o_score = 0;
+	if (!pHexBuf) {
+		return nullptr;
+	}
+	size_t bin1Cnt = 0;
+	std::unique_ptr<byte[]> pBinBuf = crypto_utils::hexToBin(pHexBuf, inCnt, bin1Cnt);
+
+	return crypto_utils::checkSingleByteXORAnsi(pBinBuf.get(), bin1Cnt, o_score);
+}
+
+std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, int& o_score)
+{
+	// XOR the given text buffer against all possible single-byte keys
+	// and return one with the highest ANSI frequency rating.
+	// The rating score is returned in the output argument o_score.
+	// The input array is binary byte values.
+
+	o_score = 0;
+	if (!pInBuf || inCnt==0) {
+		return nullptr;
+	}
+
+	int highestScore = 0;
+	byte bestX = 0;
+	std::unique_ptr<byte[]> pTestBuf = std::unique_ptr<byte[]>(new byte[inCnt]);
+	byte* pTb = pTestBuf.get();
+	
+	// Note that we're overwriting pTestBuf on each pass through the loop
+	for (size_t key = 0; key <= 0xff; key++) {
+		byte xval = key & 0xff;
+		for (size_t i = 0; i < inCnt; i++) {
+			pTb[i] = (pInBuf[i] ^ xval);
+		}
+		int score = crypto_utils::rateANSI(pTestBuf.get(), inCnt);
+		if (score > highestScore) {
+			bestX = xval;
+			highestScore = score;
+		}
+	}
+
+	// Re-compute best entry - faster than making copies at each step above
+	for (size_t i = 0; i < inCnt; i++) {
+		pTb[i] = (pInBuf[i] ^ bestX);
+	}
+	size_t outCnt = 0;
+	std::unique_ptr<char[]> pBestStr = crypto_utils::binToTxtANSI(pTb, inCnt, outCnt);
+	o_score = highestScore;
+	return pBestStr;
 }

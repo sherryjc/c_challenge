@@ -12,12 +12,19 @@ bool Challenges::Set1Ch1()
 	// Convert hex to base64 and back
 	static const char* pHexFile = "./data/set1/challenge1/input.hex";
 	static const char* pOutBase64 = "./data/set1/challenge1/outputB64.hex";
-	static const char* pHexFile2 = "./data/set1/challenge1/roundtrip.hex";
+	static const char* pHexFileOut = "./data/set1/challenge1/roundtrip.hex";
+	static const char* pHexFile2 = "./data/set1/challenge1/input2.hex";
+	static const char* pOutBase64_2 = "./data/set1/challenge1/outputB64_2.hex";
+	static const char* pHexFileOut2 = "./data/set1/challenge1/roundtrip2.hex";
 
+	// Original input file from the Cryptopals web site
 	bool bRc = crypto_utils::convHexToBase64(pHexFile, pOutBase64);
-	bool bRc2 = crypto_utils::convBase64ToHex(pOutBase64, pHexFile2);
-
-	return bRc && bRc2;
+	bRc &= crypto_utils::convBase64ToHex(pOutBase64, pHexFileOut);
+	
+	// This input file has CR-LFs
+	bRc &= crypto_utils::convHexToBase64(pHexFile2, pOutBase64_2);
+	bRc &= crypto_utils::convBase64ToHex(pOutBase64_2, pHexFileOut2);
+	return bRc;
 }
 
 bool Challenges::Set1Ch2()
@@ -27,22 +34,21 @@ bool Challenges::Set1Ch2()
 	static const char* input2 = "./data/set1/challenge2/input2.hex";
 	static const char* outputFile = "./data/set1/challenge2/output.hex";
 
-	std::unique_ptr<char[]>pTxtBuf1 = io_utils::readTextFileA(input1);
-	std::unique_ptr<char[]>pTxtBuf2 = io_utils::readTextFileA(input2);
+	size_t buf1Cnt = 0, buf2Cnt = 0;
+	std::unique_ptr<char[]>pTxtBuf1 = io_utils::readTextFileStripCRLF(input1, buf1Cnt);
+	std::unique_ptr<char[]>pTxtBuf2 = io_utils::readTextFileStripCRLF(input2, buf2Cnt);
 
-	if (!pTxtBuf1 || !pTxtBuf2) {
+	if (!pTxtBuf1 || buf1Cnt == 0 | !pTxtBuf2 | buf2Cnt == 0) {
 		return false;
 	}
-	std::string s1(pTxtBuf1.get());
-	std::string s2(pTxtBuf2.get());
-	if (s1.length() != s2.length()) {
+	if (buf1Cnt != buf2Cnt) {
 		io_utils::logError("input lengths differ");
 		return false;
 	}
 
 	size_t bin1Cnt = 0, bin2Cnt = 0;
-	std::unique_ptr<byte[]> pBinBuf1 = crypto_utils::hexToBin(pTxtBuf1.get(), s1.length(), bin1Cnt);
-	std::unique_ptr<byte[]> pBinBuf2 = crypto_utils::hexToBin(pTxtBuf2.get(), s2.length(), bin2Cnt);
+	std::unique_ptr<byte[]> pBinBuf1 = crypto_utils::hexToBin(pTxtBuf1.get(), buf1Cnt, bin1Cnt);
+	std::unique_ptr<byte[]> pBinBuf2 = crypto_utils::hexToBin(pTxtBuf2.get(), buf2Cnt, bin2Cnt);
 
 	if (bin1Cnt == 0 || !pBinBuf1 || bin2Cnt == 0 || !pBinBuf2 || bin1Cnt != bin2Cnt) {
 		return false;
@@ -58,7 +64,7 @@ bool Challenges::Set1Ch2()
 	size_t hexCnt = 0;
 	std::unique_ptr<char[]> pResultsHex = crypto_utils::binToHex(pResultsBuf.get(), bin1Cnt, hexCnt);
 	std::string ostr(pResultsHex.get());
-	size_t nWritten = io_utils::writeTextFileA(outputFile, ostr.c_str(), ostr.length());
+	size_t nWritten = io_utils::writeTextFile(outputFile, ostr.c_str(), ostr.length());
 
 	return nWritten == ostr.length();
 }
@@ -68,14 +74,14 @@ bool Challenges::Set1Ch3()
 	// Break single-byte XOR encryption
 
 	static const char* input = "./data/set1/challenge3/input.hex";
-	std::unique_ptr<char[]>pTxtBuf = io_utils::readTextFileA(input);
+	size_t txtBufCnt = 0;
+	std::unique_ptr<char[]>pTxtBuf = io_utils::readTextFileStripCRLF(input, txtBufCnt);
 	if (!pTxtBuf) {
 		return false;
 	}
-	std::string s1(pTxtBuf.get());
 	int score = 0;
 	unsigned key = 0;
-	std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pTxtBuf.get(), s1.length(), key, score);
+	std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pTxtBuf.get(), txtBufCnt, key, score);
 
 	std::cout << "Decoded string: " << pDecodedStr.get() << std::endl << "key: " << key << " score: " << score << std::endl;
 
@@ -100,6 +106,7 @@ bool Challenges::Set1Ch4()
 {
 	// Detect single-byte XOR encryption
 
+	// TODO - strip trailing CR-LF; this is really a hex file 
 	static const char* input = "./data/set1/challenge4/c4.txt";
 	std::ifstream infile(input);
 	std::string line;
@@ -139,8 +146,9 @@ bool Challenges::Set1Ch5()
 	static const char* outputFile = "./data/set1/challenge5/encrypted.txt";
 	static const char* outputFile2 = "./data/set1/challenge5/decrypted.txt";
 
-	std::unique_ptr<char[]> pTxt = io_utils::readTextFileA(pFilename);
-	if (!pTxt) {
+	size_t txtBufCnt = 0;
+	std::unique_ptr<char[]> pTxt = io_utils::readTextFile(pFilename, txtBufCnt);
+	if (!pTxt || txtBufCnt == 0) {
 		return false;
 	}
 
@@ -158,13 +166,13 @@ bool Challenges::Set1Ch5()
 	}
 
 	std::string ostr(pHexBuf.get());
-	size_t nWritten = io_utils::writeTextFileA(outputFile, ostr.c_str(), ostr.length());
+	size_t nWritten = io_utils::writeTextFile(outputFile, ostr.c_str(), ostr.length());
 
 	bool bRc = (nWritten == ostr.length());
 
 	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pEncBuf.get(), encBufCnt, bKey, key.length());  // see above
 	std::string ostr2(pRoundTrip.get());
-	nWritten = io_utils::writeTextFileA(outputFile2, pRoundTrip.get(), ostr2.length());
+	nWritten = io_utils::writeTextFile(outputFile2, pRoundTrip.get(), ostr2.length());
 	bRc &= (nWritten == ostr2.length());
 	return bRc;
 }
@@ -174,16 +182,15 @@ bool Challenges::Set1Ch6()
 	// Break repeating-key XOR
 
 	static const char* pInFile = "./data/set1/challenge6/input.b64";
-	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileA(pInFile);
+	size_t b64Cnt = 0;
+	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pInFile, b64Cnt);
 	if (!pBase64Buf) {
 		return false;
 	}
 
-	std::string s(pBase64Buf.get());
 	size_t binCnt = 0;
 
-	// Note: this strips out CR-LF
-	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), s.length(), binCnt);
+	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), b64Cnt, binCnt);
 	const byte* pBinBuf = pBinBytes.get();
 
 	// Overview
@@ -228,7 +235,7 @@ bool Challenges::Set1Ch6()
 		std::unique_ptr<char[]> pDecodedStrIgnored = crypto_utils::checkSingleByteXORAnsi(pBytes.get(), bytesInBlock, keyByte, score);
 		pWholeKey[keyPos] = keyByte;
 	}
-
+	dbg_utils::displayBytes(pWholeKey, keyLength);
 	// Decode the whole message with the full computed key and see what it looks like 
 	std::unique_ptr<char[]> pCleartext = crypto_utils::decryptRepeatingKey(pBinBuf, binCnt, pWholeKey, keyLength);
 
@@ -244,23 +251,22 @@ bool Challenges::Set1Ch6x()
 
 	static const char* pInFile = "./data/set1/challenge6/input.b64";
 	static const char* outputFile2 = "./data/set1/challenge6/decrypted.txt";
-	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileA(pInFile);
-	if (!pBase64Buf) {
+	
+	size_t base64Cnt = 0;
+	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pInFile, base64Cnt);
+	if (!pBase64Buf || !pBase64Buf.get()) {
 		return false;
 	}
 
-	std::string s(pBase64Buf.get());
 	size_t binCnt = 0;
-
-	// Note: this strips out CR-LF
-	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), s.length(), binCnt);
+	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt);
 	const byte* pBinBuf = pBinBytes.get();
 
-	static const byte bKey[] = "IONEN";  // TODO - straighten this out ... conversion function?
-	std::string key("ionen");
+	static const byte bKey[] = "ornrn";  // TODO - straighten this out ... conversion function?
+	std::string key("ornrn");
 	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pBinBytes.get(), binCnt, bKey, key.length());  // see above
 	std::string ostr2(pRoundTrip.get());
-	size_t nWritten = io_utils::writeTextFileA(outputFile2, pRoundTrip.get(), ostr2.length());
+	size_t nWritten = io_utils::writeTextFile(outputFile2, pRoundTrip.get(), ostr2.length());
 	bool bRc = (nWritten == ostr2.length());
 	std::cout << "Wrote " << nWritten << " bytes to " << outputFile2 << std::endl;
 	return bRc;

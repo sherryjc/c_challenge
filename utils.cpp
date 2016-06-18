@@ -69,7 +69,7 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& out
 	return pBuffer;
 }
 
-std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
+std::unique_ptr<char[]> io_utils::readTextFile(const char* pFileName, size_t& outCnt)
 {
 	FILE * pFile = fopen(pFileName, "r");
 	if (nullptr == pFile) {
@@ -96,16 +96,25 @@ std::unique_ptr<char[]> io_utils::readTextFileA(const char* pFileName)
 		logError("fread");
 	}
 	pBuffer[itemsRead] = '\0';
+	outCnt = itemsRead;
 	fclose(pFile);
 	return pBuffer;
 }
 
-size_t io_utils::writeBinFile(const char* pFileName, const char* pBuffer, size_t cch)
+std::unique_ptr<char[]> io_utils::readTextFileStripCRLF(const char* pFileName, size_t& outCnt)
 {
-	return writeTextFileA(pFileName, pBuffer, cch, true);
+	size_t readCnt = 0;
+	std::unique_ptr<char[]> pTxt = io_utils::readTextFile(pFileName, readCnt);
+	std::unique_ptr<char[]> pStrippedTxt = stripCRLF(pTxt.get(), readCnt, outCnt);
+	return pStrippedTxt;
 }
 
-size_t io_utils::writeTextFileA(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw)
+size_t io_utils::writeBinFile(const char* pFileName, const char* pBuffer, size_t cch)
+{
+	return writeTextFile(pFileName, pBuffer, cch, true);
+}
+
+size_t io_utils::writeTextFile(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw)
 {
 	FILE * pFile = fopen(pFileName, bRaw ? "wb" : "w");
 	if (nullptr == pFile) {
@@ -138,6 +147,13 @@ std::unique_ptr<char[]> io_utils::stripCRLF(const char* pCharBuf, size_t inCnt, 
 	return pStrippedBuffer;
 }
 
+void dbg_utils::displayBytes(const byte* pBytes, size_t cnt)
+{
+	for (size_t i=0; i<cnt; i++) {
+		std::cout << pBytes[i];
+	}
+	std::cout << std::endl;
+}
 
 
 /*****************************************/
@@ -313,35 +329,33 @@ std::unique_ptr<char[]> crypto_utils::binToBase64(const byte* pBuf, size_t inCnt
 
 std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt)
 {
-	// Make sure CR-LF have been stripped from input
-	size_t strippedCnt = 0;
-	std::unique_ptr<char[]> pStripped = io_utils::stripCRLF(pB64Buf, inCnt, strippedCnt);
+	// Assumption: CR-LF have already been stripped from input
 
 	// Error out on non-multiples of 4 (TODO: could implement this)
-	if (strippedCnt % 4) {
+	if (inCnt % 4) {
 		io_utils::logError("Input to base64ToBin");
 		return nullptr;
 	}
 
-	size_t groups = strippedCnt / 4;
+	size_t groups = inCnt / 4;
 	std::unique_ptr<byte[]>pOutBuf = std::unique_ptr<byte[]>(new byte[groups*3]);
 	int ib = 0;
 	outCnt = 0;
 	for (size_t i = 0; i < groups - 1; i++) {
-		byte i0 = _b64ToIdx(pStripped[ib++]);
-		byte i1 = _b64ToIdx(pStripped[ib++]);
-		byte i2 = _b64ToIdx(pStripped[ib++]);
-		byte i3 = _b64ToIdx(pStripped[ib++]);
+		byte i0 = _b64ToIdx(pB64Buf[ib++]);
+		byte i1 = _b64ToIdx(pB64Buf[ib++]);
+		byte i2 = _b64ToIdx(pB64Buf[ib++]);
+		byte i3 = _b64ToIdx(pB64Buf[ib++]);
 
 		pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
 		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
 		pOutBuf[outCnt++] = i2 << 6 | i3;
 	}
 	// Handle last group separately - extra checking for padding chars
-	byte i0 = _b64ToIdx(pStripped[ib++]);
-	byte i1 = _b64ToIdx(pStripped[ib++]);
-	byte i2 = _b64ToIdx(pStripped[ib++]);
-	byte i3 = _b64ToIdx(pStripped[ib++]);
+	byte i0 = _b64ToIdx(pB64Buf[ib++]);
+	byte i1 = _b64ToIdx(pB64Buf[ib++]);
+	byte i2 = _b64ToIdx(pB64Buf[ib++]);
+	byte i3 = _b64ToIdx(pB64Buf[ib++]);
 
 	pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
 	if (i2 == 0xff) {
@@ -361,16 +375,14 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 
 bool crypto_utils::convHexToBase64(const char* pHexFile, const char* pBase64File)
 {
-	std::unique_ptr<char[]>pHexBuf = io_utils::readTextFileA(pHexFile);
+	size_t hexCnt = 0;
+	std::unique_ptr<char[]>pHexBuf = io_utils::readTextFileStripCRLF(pHexFile, hexCnt);
 	if (!pHexBuf) {
 		return false;
 	}
 
-	// TODO: strip out CR-LF?
-
-	std::string s(pHexBuf.get());
 	size_t binCnt = 0;
-	std::unique_ptr<byte[]> pBinBuf = crypto_utils::hexToBin(pHexBuf.get(), s.length(), binCnt);
+	std::unique_ptr<byte[]> pBinBuf = crypto_utils::hexToBin(pHexBuf.get(), hexCnt, binCnt);
 	if (binCnt == 0 || !pBinBuf) {
 		return false;
 	}
@@ -382,23 +394,21 @@ bool crypto_utils::convHexToBase64(const char* pHexFile, const char* pBase64File
 	}
 
 	std::string ostr(pB64Buf.get());
-	size_t nWritten = io_utils::writeTextFileA(pBase64File, ostr.c_str(), ostr.length());
+	size_t nWritten = io_utils::writeTextFile(pBase64File, ostr.c_str(), ostr.length());
 
 	return nWritten == ostr.length();
 }
 
 bool crypto_utils::convBase64ToHex(const char* pBase64File, const char* pHexFile)
 {
-	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileA(pBase64File);
-	if (!pBase64Buf) {
+	size_t base64Cnt = 0;
+	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pBase64File, base64Cnt);
+	if (!pBase64Buf || base64Cnt == 0) {
 		return false;
 	}
 
-	// TODO: strip out CR-LF?
-
-	std::string s(pBase64Buf.get());
 	size_t binCnt = 0;
-	std::unique_ptr<byte[]> pBinBuf = crypto_utils::base64ToBin(pBase64Buf.get(), s.length(), binCnt);
+	std::unique_ptr<byte[]> pBinBuf = crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt);
 	if (binCnt == 0 || !pBinBuf) {
 		return false;
 	}
@@ -410,7 +420,7 @@ bool crypto_utils::convBase64ToHex(const char* pBase64File, const char* pHexFile
 	}
 
 	std::string ostr(pHexBuf.get());
-	size_t nWritten = io_utils::writeTextFileA(pHexFile, ostr.c_str(), ostr.length());
+	size_t nWritten = io_utils::writeTextFile(pHexFile, ostr.c_str(), ostr.length());
 
 	return nWritten == ostr.length();
 }

@@ -12,14 +12,20 @@ namespace io_utils {
 		IO_UTILS_UTF_16LE
 	};
 
-	std::unique_ptr<byte[]> readBinFile(const char* pFileName, size_t& outSz);
-	std::unique_ptr<char[]> readTextFileA(const char* pFileName);
+	std::unique_ptr<byte[]> readBinFile(const char* pFileName, size_t& outCnt);
+	std::unique_ptr<char[]> readTextFile(const char* pFileName, size_t& outCnt);
+	std::unique_ptr<char[]> readTextFileStripCRLF(const char* pFileName, size_t& outCnt);
 	size_t writeBinFile(const char* pFileName, const char* pBuffer, size_t cch);
-	size_t writeTextFileA(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw=false);
+	size_t writeTextFile(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw=false);
 
 	std::unique_ptr<char[]> stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt);
 
 	void logError(const char* str);
+}
+
+namespace dbg_utils {
+	void displayBytes(const byte* pBytes, size_t cnt);
+
 }
 
 namespace crypto_utils {

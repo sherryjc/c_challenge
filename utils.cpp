@@ -122,6 +122,21 @@ size_t io_utils::writeTextFileA(const char* pFileName, const char* pBuffer, size
 }
 
 
+std::unique_ptr<char[]> io_utils::stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt)
+{
+	std::unique_ptr<char[]>pStrippedBuffer = std::unique_ptr<char[]>(new char[inCnt + 1]);
+	char* pDest = pStrippedBuffer.get();
+	strippedCnt = 0;
+	const char* pSrc = pCharBuf;
+	for (size_t i = 0; i < inCnt; i++) {
+		if (*pSrc != '\n' && *pSrc != '\r') {
+			*pDest++ = *pSrc;
+			strippedCnt++;
+		}
+		pSrc++;
+	}
+	return pStrippedBuffer;
+}
 
 
 
@@ -288,31 +303,34 @@ std::unique_ptr<char[]> crypto_utils::binToBase64(const byte* pBuf, size_t inCnt
 std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt)
 {
 	// Make sure CR-LF have been stripped from input
-	// See if we need to allow for non-multiples of 4
-	if (inCnt % 4) {
+	size_t strippedCnt = 0;
+	std::unique_ptr<char[]> pStripped = io_utils::stripCRLF(pB64Buf, inCnt, strippedCnt);
+
+	// Error out on non-multiples of 4 (TODO: could implement this)
+	if (strippedCnt % 4) {
 		io_utils::logError("Input to base64ToBin");
 		return nullptr;
 	}
 
-	size_t groups = inCnt / 4;
+	size_t groups = strippedCnt / 4;
 	std::unique_ptr<byte[]>pOutBuf = std::unique_ptr<byte[]>(new byte[groups*3]);
 	int ib = 0;
 	outCnt = 0;
 	for (size_t i = 0; i < groups - 1; i++) {
-		byte i0 = _b64ToIdx(pB64Buf[ib++]);
-		byte i1 = _b64ToIdx(pB64Buf[ib++]);
-		byte i2 = _b64ToIdx(pB64Buf[ib++]);
-		byte i3 = _b64ToIdx(pB64Buf[ib++]);
+		byte i0 = _b64ToIdx(pStripped[ib++]);
+		byte i1 = _b64ToIdx(pStripped[ib++]);
+		byte i2 = _b64ToIdx(pStripped[ib++]);
+		byte i3 = _b64ToIdx(pStripped[ib++]);
 
 		pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
 		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
 		pOutBuf[outCnt++] = i2 << 6 | i3;
 	}
 	// Handle last group separately - extra checking for padding chars
-	byte i0 = _b64ToIdx(pB64Buf[ib++]);
-	byte i1 = _b64ToIdx(pB64Buf[ib++]);
-	byte i2 = _b64ToIdx(pB64Buf[ib++]);
-	byte i3 = _b64ToIdx(pB64Buf[ib++]);
+	byte i0 = _b64ToIdx(pStripped[ib++]);
+	byte i1 = _b64ToIdx(pStripped[ib++]);
+	byte i2 = _b64ToIdx(pStripped[ib++]);
+	byte i3 = _b64ToIdx(pStripped[ib++]);
 
 	pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
 	if (i2 == 0xff) {
@@ -336,6 +354,8 @@ bool crypto_utils::convHexToBase64(const char* pHexFile, const char* pBase64File
 	if (!pHexBuf) {
 		return false;
 	}
+
+	// TODO: strip out CR-LF?
 
 	std::string s(pHexBuf.get());
 	size_t binCnt = 0;
@@ -362,6 +382,8 @@ bool crypto_utils::convBase64ToHex(const char* pBase64File, const char* pHexFile
 	if (!pBase64Buf) {
 		return false;
 	}
+
+	// TODO: strip out CR-LF?
 
 	std::string s(pBase64Buf.get());
 	size_t binCnt = 0;
@@ -401,7 +423,7 @@ int crypto_utils::rateANSI(byte* pByteArray, size_t cnt)
 	return static_cast<int>((score*100)/cnt);
 }
 
-std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, int& o_score)
+std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, unsigned& o_key, int& o_score)
 {
 	// XOR the given text buffer against all possible single-byte keys
 	// and return one with the highest ANSI frequency rating.
@@ -409,16 +431,17 @@ std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const char* pHexBuf
 	// The input array is hex encoded characters.
 
 	o_score = 0;
+	o_key = 0;
 	if (!pHexBuf) {
 		return nullptr;
 	}
 	size_t bin1Cnt = 0;
 	std::unique_ptr<byte[]> pBinBuf = crypto_utils::hexToBin(pHexBuf, inCnt, bin1Cnt);
 
-	return crypto_utils::checkSingleByteXORAnsi(pBinBuf.get(), bin1Cnt, o_score);
+	return crypto_utils::checkSingleByteXORAnsi(pBinBuf.get(), bin1Cnt, o_key, o_score);
 }
 
-std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, int& o_score)
+std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, unsigned& o_key, int& o_score)
 {
 	// XOR the given text buffer against all possible single-byte keys
 	// and return one with the highest ANSI frequency rating.
@@ -426,6 +449,7 @@ std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const byte* pInBuf,
 	// The input array is binary byte values.
 
 	o_score = 0;
+	o_key = 0;
 	if (!pInBuf || inCnt==0) {
 		return nullptr;
 	}
@@ -455,6 +479,7 @@ std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const byte* pInBuf,
 	size_t outCnt = 0;
 	std::unique_ptr<char[]> pBestStr = crypto_utils::binToTxtANSI(pTb, inCnt, outCnt);
 	o_score = highestScore;
+	o_key = bestX;
 	return pBestStr;
 }
 
@@ -473,20 +498,74 @@ std::unique_ptr<byte[]> crypto_utils::encryptRepeatingKey(const std::string& tex
 }
 
 
-std::unique_ptr<char[]> crypto_utils::decryptRepeatingKey(const byte* pBuf, const size_t bufCnt, const std::string& key)
+std::unique_ptr<char[]> crypto_utils::decryptRepeatingKey(const byte* pBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen)
 {
-	if (!pBuf || bufCnt == 0 || key.length() == 0) {
+	if (!pBuf || bufCnt == 0 || keyLen == 0) {
 		return nullptr;
 	}
 
 	std::unique_ptr<char[]> pTxt = std::unique_ptr<char[]>(new char[bufCnt+1]);
 	char* pT = pTxt.get();
-	const char* pKey = key.c_str();
-	size_t keyLen = key.length();
 
 	for (size_t idx = 0; idx < bufCnt; idx++) {
 		pT[idx] = pBuf[idx] ^ pKey[idx%keyLen];
 	}
 	pT[bufCnt] = '\0';
 	return pTxt;
+}
+
+unsigned crypto_utils::countBits(byte x)
+{
+	unsigned count = 0;
+	while (x > 0) {
+		if ((x & 1) == 1) {
+			count += 1;
+		}
+		x >>= 1;
+	}
+	return count;
+}
+
+unsigned crypto_utils::hammingDistance(byte x, byte y)
+{
+	return crypto_utils::countBits(x ^ y);
+}
+
+unsigned crypto_utils::hammingDistance(const byte* pX, size_t lenX, const byte* pY, size_t lenY)
+{
+	unsigned distance = 0;
+	if (lenX != lenY) {
+		io_utils::logError("Invalid inputs to hammingDistance: lengths must be equal");
+		return distance;
+	}
+	for (size_t i = 0; i < lenX; i++) {
+		distance += crypto_utils::hammingDistance(pX[i], pY[i]);
+	}
+	return distance;
+}
+
+unsigned crypto_utils::getKeyLengthRatings(const byte* pBytes, unsigned stKeyLen, unsigned endKeyLen, KeyLengthRatings& keyLengthRatings)
+{
+	// For each KEYSIZE in {range}
+	//     compute the Hamming distance between first KEYSIZE bytes and second KEYSIZE bytes
+	//     normalize (/KEYSIZE)
+	//     the key length with the lowest Hamming distance is likely the correct one
+
+	unsigned bestKeyLen = 0;
+	unsigned bestRating = 0xffffffff;
+
+	for (unsigned key = stKeyLen; key <= endKeyLen; key++) {
+
+		const byte* pChunk1 = pBytes;
+		const byte* pChunk2 = pBytes + key;
+
+		unsigned normalizedDist = crypto_utils::hammingDistance(pChunk1, key, pChunk2, key) / key;
+		keyLengthRatings[key] = normalizedDist;
+
+		if (normalizedDist < bestRating) {
+			bestKeyLen = key;
+			bestRating = normalizedDist;
+		}
+	}
+	return bestKeyLen;
 }

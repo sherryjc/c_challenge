@@ -13,7 +13,8 @@ int main(int argc, char* argv[])
 	//bRc &= Challenges::Set1Ch2();
 	//bRc &= Challenges::Set1Ch3();
 	//bRc &= Challenges::Set1Ch4();
-	bRc &= Challenges::Set1Ch5();
+	//bRc &= Challenges::Set1Ch5();
+	bRc &= Challenges::Set1Ch6();
 
 	return bRc == true ? 0 : 1;
 }

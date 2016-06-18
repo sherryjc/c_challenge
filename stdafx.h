@@ -13,6 +13,8 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <iostream>
+#include <unordered_map>
 
 
 // TODO: reference additional headers your program requires here

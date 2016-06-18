@@ -74,9 +74,10 @@ bool Challenges::Set1Ch3()
 	}
 	std::string s1(pTxtBuf.get());
 	int score = 0;
-	std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pTxtBuf.get(), s1.length(), score);
+	unsigned key = 0;
+	std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pTxtBuf.get(), s1.length(), key, score);
 
-	printf("Decoded string: %s", pDecodedStr.get());
+	std::cout << "Decoded string: " << pDecodedStr.get() << std::endl << "key: " << key << " score: " << score << std::endl;
 
 	return true;
 }
@@ -107,8 +108,9 @@ bool Challenges::Set1Ch4()
 	{
 		size_t byteCnt = 0;
 		int score = 0;
+		unsigned key = 0;
 		std::unique_ptr<byte[]> pBytes = crypto_utils::hexToBin(line.c_str(), line.length(), byteCnt);
-		std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pBytes.get(), byteCnt, score);
+		std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pBytes.get(), byteCnt, key, score);
 		results.emplace_back(ScoredString(pDecodedStr.get(), score));
 	}
 
@@ -142,6 +144,7 @@ bool Challenges::Set1Ch5()
 		return false;
 	}
 
+	static const byte bKey[] = "ICE";  // TODO - straighten this out ... conversion function?
 	std::string key("ICE");
 	size_t encBufCnt = 0;
 	std::unique_ptr<byte[]> pEncBuf = crypto_utils::encryptRepeatingKey(std::string(pTxt.get()), key, encBufCnt);
@@ -159,9 +162,78 @@ bool Challenges::Set1Ch5()
 
 	bool bRc = (nWritten == ostr.length());
 
-	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pEncBuf.get(), encBufCnt, key);
+	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pEncBuf.get(), encBufCnt, bKey, key.length());  // see above
 	std::string ostr2(pRoundTrip.get());
 	nWritten = io_utils::writeTextFileA(outputFile2, pRoundTrip.get(), ostr2.length());
 	bRc &= (nWritten == ostr2.length());
 	return bRc;
+}
+
+bool Challenges::Set1Ch6()
+{
+	// Break repeating-key XOR
+
+	static const char* pInFile = "./data/set1/challenge6/input.b64";
+	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileA(pInFile);
+	if (!pBase64Buf) {
+		return false;
+	}
+
+	std::string s(pBase64Buf.get());
+	size_t binCnt = 0;
+
+	// Note: this strips out CR-LF
+	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), s.length(), binCnt);
+	const byte* pBinBuf = pBinBytes.get();
+
+	// Overview
+	// Compute the most likely key length
+	// Break input into KEYLEN-sized blocks
+	// Transpose blocks: b1 = first byte of every block, b2 = second byte, etc.
+	// Solve each block as if it were single-char XOR (re-use earlier code)
+	// Put the single-char solutions together to obtain the key
+
+
+	// Compute the most likely key length
+	unsigned startKeyLen = 2;
+	unsigned endKeyLen = 40;
+	crypto_utils::KeyLengthRatings keyLengthRatings;
+	unsigned keyLength = crypto_utils::getKeyLengthRatings(pBinBuf, startKeyLen, endKeyLen, keyLengthRatings);
+
+	std::cout << "Using best key length = " << keyLength << std::endl;
+
+	//for (const auto& entry : keyLengthRatings) {
+	//	std::cout << "Length: " << entry.first << "  Rating: " << entry.second << std::endl;
+	//}
+
+	std::unique_ptr<byte[]> spWholeKey = std::unique_ptr<byte[]>(new byte[keyLength]);
+	byte* pWholeKey = spWholeKey.get();
+
+	// Break input into KEYLEN-sized blocks
+	unsigned wholeBlocks = static_cast<unsigned>(binCnt / keyLength);
+	unsigned extraBytes = static_cast<unsigned>(binCnt % keyLength);
+
+	for (unsigned keyPos = 0; keyPos < keyLength; keyPos++) {
+
+		unsigned bytesInBlock = keyPos < extraBytes ? wholeBlocks + 1 : wholeBlocks;
+		std::unique_ptr<byte[]> pBytes = std::unique_ptr<byte[]>(new byte[bytesInBlock]);
+		byte* pDest = pBytes.get();
+		const byte* pSrc = &pBinBuf[keyPos];
+		for (unsigned b = 0; b < bytesInBlock; b++) {
+			*pDest++ = *pSrc;
+			pSrc += keyLength;
+		}
+		unsigned keyByte = 0;
+		int score = 0;
+		std::unique_ptr<char[]> pDecodedStrIgnored = crypto_utils::checkSingleByteXORAnsi(pDest, bytesInBlock, keyByte, score);
+		pWholeKey[keyPos] = keyByte;
+	}
+
+	// Decode the whole message with the full computed key and see what it looks like 
+	std::unique_ptr<char[]> pCleartext = crypto_utils::decryptRepeatingKey(pBinBuf, binCnt, pWholeKey, keyLength);
+
+	std::cout << "And the decrypted message is:\n";
+	std::cout << pCleartext.get();
+
+	return true;
 }

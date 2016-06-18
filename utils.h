@@ -17,6 +17,8 @@ namespace io_utils {
 	size_t writeBinFile(const char* pFileName, const char* pBuffer, size_t cch);
 	size_t writeTextFileA(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw=false);
 
+	std::unique_ptr<char[]> stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt);
+
 	void logError(const char* str);
 }
 
@@ -32,10 +34,17 @@ namespace crypto_utils {
 	bool convBase64ToHex(const char* pBase64File, const char* pHexFile);
 
 	int rateANSI(byte* pByteArray, size_t cnt);
-	std::unique_ptr<char[]> checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, int& o_score);
-	std::unique_ptr<char[]> checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, int& o_score);
+	std::unique_ptr<char[]> checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, unsigned& key, int& o_score);
+	std::unique_ptr<char[]> checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, unsigned& key, int& o_score);
 
 	std::unique_ptr<byte[]> encryptRepeatingKey(const std::string& text, const std::string& key, size_t& outCnt);
-	std::unique_ptr<char[]> decryptRepeatingKey(const byte* pBuf, const size_t bufCnt, const std::string& key);
+	std::unique_ptr<char[]> decryptRepeatingKey(const byte* pBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen);
+
+	unsigned countBits(byte x);
+	unsigned hammingDistance(byte x, byte y);
+	unsigned hammingDistance(const byte* pX, size_t lenX, const byte* pY, size_t lenY);
+
+	using KeyLengthRatings = std::unordered_map<unsigned, unsigned>;
+	unsigned getKeyLengthRatings(const byte* pBytes, unsigned stKeyLen, unsigned endKeyLen, KeyLengthRatings& keyLengthRatings);
 
 }

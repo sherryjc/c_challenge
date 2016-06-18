@@ -225,7 +225,7 @@ bool Challenges::Set1Ch6()
 		}
 		unsigned keyByte = 0;
 		int score = 0;
-		std::unique_ptr<char[]> pDecodedStrIgnored = crypto_utils::checkSingleByteXORAnsi(pDest, bytesInBlock, keyByte, score);
+		std::unique_ptr<char[]> pDecodedStrIgnored = crypto_utils::checkSingleByteXORAnsi(pBytes.get(), bytesInBlock, keyByte, score);
 		pWholeKey[keyPos] = keyByte;
 	}
 
@@ -236,4 +236,32 @@ bool Challenges::Set1Ch6()
 	std::cout << pCleartext.get();
 
 	return true;
+}
+
+bool Challenges::Set1Ch6x()
+{
+	// Break repeating-key XOR
+
+	static const char* pInFile = "./data/set1/challenge6/input.b64";
+	static const char* outputFile2 = "./data/set1/challenge6/decrypted.txt";
+	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileA(pInFile);
+	if (!pBase64Buf) {
+		return false;
+	}
+
+	std::string s(pBase64Buf.get());
+	size_t binCnt = 0;
+
+	// Note: this strips out CR-LF
+	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), s.length(), binCnt);
+	const byte* pBinBuf = pBinBytes.get();
+
+	static const byte bKey[] = "IONEN";  // TODO - straighten this out ... conversion function?
+	std::string key("ionen");
+	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pBinBytes.get(), binCnt, bKey, key.length());  // see above
+	std::string ostr2(pRoundTrip.get());
+	size_t nWritten = io_utils::writeTextFileA(outputFile2, pRoundTrip.get(), ostr2.length());
+	bool bRc = (nWritten == ostr2.length());
+	std::cout << "Wrote " << nWritten << " bytes to " << outputFile2 << std::endl;
+	return bRc;
 }

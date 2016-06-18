@@ -4,8 +4,8 @@
 CPP      = g++.exe -D__DEBUG__
 CC       = gcc.exe -D__DEBUG__
 WINDRES  = windres.exe
-OBJ      = cryptopals.o stdafx.o utils.o
-LINKOBJ  = cryptopals.o stdafx.o utils.o
+OBJ      = cryptopals.o stdafx.o utils.o challenges.o
+LINKOBJ  = cryptopals.o stdafx.o utils.o challenges.o
 LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib" -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib" -static-libgcc -g3
 INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include"
 CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include/c++"
@@ -32,3 +32,6 @@ stdafx.o: stdafx.cpp
 
 utils.o: utils.cpp
 	$(CPP) -c utils.cpp -o utils.o $(CXXFLAGS)
+
+challenges.o: challenges.cpp
+	$(CPP) -c challenges.cpp -o challenges.o $(CXXFLAGS)

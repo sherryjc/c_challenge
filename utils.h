@@ -24,7 +24,7 @@ namespace io_utils {
 }
 
 namespace dbg_utils {
-	void displayBytes(const byte* pBytes, size_t cnt);
+	void displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt);
 
 }
 
@@ -41,7 +41,7 @@ namespace crypto_utils {
 
 	int rateANSI(byte* pByteArray, size_t cnt);
 	std::unique_ptr<char[]> checkSingleByteXORAnsi(const byte* pInBuf, const size_t inCnt, unsigned& key, int& o_score);
-	std::unique_ptr<char[]> checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, unsigned& key, int& o_score);
+	std::unique_ptr<char[]> checkSingleByteXORAnsiH(const char* pHexBuf, const size_t inCnt, unsigned& key, int& o_score);
 
 	std::unique_ptr<byte[]> encryptRepeatingKey(const std::string& text, const std::string& key, size_t& outCnt);
 	std::unique_ptr<char[]> decryptRepeatingKey(const byte* pBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen);
@@ -50,7 +50,7 @@ namespace crypto_utils {
 	unsigned hammingDistance(byte x, byte y);
 	unsigned hammingDistance(const byte* pX, size_t lenX, const byte* pY, size_t lenY);
 
-	using KeyLengthRatings = std::unordered_map<unsigned, unsigned>;
+	using KeyLengthRatings = std::unordered_map<unsigned, float>;
 	unsigned getKeyLengthRatings(const byte* pBytes, unsigned stKeyLen, unsigned endKeyLen, KeyLengthRatings& keyLengthRatings);
-
+	std::unique_ptr<char[]> decodeUsingFixedKeyLength(const byte* pBinBuf, size_t binCnt, byte* pKey, size_t keyLength);
 }

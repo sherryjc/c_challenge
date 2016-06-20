@@ -13,17 +13,11 @@ bool Challenges::Set1Ch1()
 	static const char* pHexFile = "./data/set1/challenge1/input.hex";
 	static const char* pOutBase64 = "./data/set1/challenge1/outputB64.hex";
 	static const char* pHexFileOut = "./data/set1/challenge1/roundtrip.hex";
-	static const char* pHexFile2 = "./data/set1/challenge1/input2.hex";
-	static const char* pOutBase64_2 = "./data/set1/challenge1/outputB64_2.hex";
-	static const char* pHexFileOut2 = "./data/set1/challenge1/roundtrip2.hex";
 
 	// Original input file from the Cryptopals web site
 	bool bRc = crypto_utils::convHexToBase64(pHexFile, pOutBase64);
 	bRc &= crypto_utils::convBase64ToHex(pOutBase64, pHexFileOut);
 	
-	// This input file has CR-LFs
-	bRc &= crypto_utils::convHexToBase64(pHexFile2, pOutBase64_2);
-	bRc &= crypto_utils::convBase64ToHex(pOutBase64_2, pHexFileOut2);
 	return bRc;
 }
 
@@ -38,7 +32,7 @@ bool Challenges::Set1Ch2()
 	std::unique_ptr<char[]>pTxtBuf1 = io_utils::readTextFileStripCRLF(input1, buf1Cnt);
 	std::unique_ptr<char[]>pTxtBuf2 = io_utils::readTextFileStripCRLF(input2, buf2Cnt);
 
-	if (!pTxtBuf1 || buf1Cnt == 0 | !pTxtBuf2 | buf2Cnt == 0) {
+	if (!pTxtBuf1 || buf1Cnt == 0 || !pTxtBuf2 || buf2Cnt == 0) {
 		return false;
 	}
 	if (buf1Cnt != buf2Cnt) {
@@ -81,7 +75,7 @@ bool Challenges::Set1Ch3()
 	}
 	int score = 0;
 	unsigned key = 0;
-	std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pTxtBuf.get(), txtBufCnt, key, score);
+	std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsiH(pTxtBuf.get(), txtBufCnt, key, score);
 
 	std::cout << "Decoded string: " << pDecodedStr.get() << std::endl << "key: " << key << " score: " << score << std::endl;
 
@@ -205,42 +199,28 @@ bool Challenges::Set1Ch6()
 	unsigned startKeyLen = 2;
 	unsigned endKeyLen = 40;
 	crypto_utils::KeyLengthRatings keyLengthRatings;
-	unsigned keyLength = crypto_utils::getKeyLengthRatings(pBinBuf, startKeyLen, endKeyLen, keyLengthRatings);
+	unsigned bestKeyLength = crypto_utils::getKeyLengthRatings(pBinBuf, startKeyLen, endKeyLen, keyLengthRatings);
 
-	std::cout << "Using best key length = " << keyLength << std::endl;
+	std::cout << "Computed best key length = " << bestKeyLength << std::endl;
 
-	//for (const auto& entry : keyLengthRatings) {
-	//	std::cout << "Length: " << entry.first << "  Rating: " << entry.second << std::endl;
-	//}
-
-	std::unique_ptr<byte[]> spWholeKey = std::unique_ptr<byte[]>(new byte[keyLength]);
-	byte* pWholeKey = spWholeKey.get();
-
-	// Break input into KEYLEN-sized blocks
-	unsigned wholeBlocks = static_cast<unsigned>(binCnt / keyLength);
-	unsigned extraBytes = static_cast<unsigned>(binCnt % keyLength);
-
-	for (unsigned keyPos = 0; keyPos < keyLength; keyPos++) {
-
-		unsigned bytesInBlock = keyPos < extraBytes ? wholeBlocks + 1 : wholeBlocks;
-		std::unique_ptr<byte[]> pBytes = std::unique_ptr<byte[]>(new byte[bytesInBlock]);
-		byte* pDest = pBytes.get();
-		const byte* pSrc = &pBinBuf[keyPos];
-		for (unsigned b = 0; b < bytesInBlock; b++) {
-			*pDest++ = *pSrc;
-			pSrc += keyLength;
-		}
-		unsigned keyByte = 0;
-		int score = 0;
-		std::unique_ptr<char[]> pDecodedStrIgnored = crypto_utils::checkSingleByteXORAnsi(pBytes.get(), bytesInBlock, keyByte, score);
-		pWholeKey[keyPos] = keyByte;
+	std::cout << "All computed key lengths:" << std::endl;
+	for (const auto& entry : keyLengthRatings) {
+		std::cout << "Length: " << entry.first << "  Rating: " << entry.second << std::endl;
 	}
-	dbg_utils::displayBytes(pWholeKey, keyLength);
-	// Decode the whole message with the full computed key and see what it looks like 
-	std::unique_ptr<char[]> pCleartext = crypto_utils::decryptRepeatingKey(pBinBuf, binCnt, pWholeKey, keyLength);
 
-	std::cout << "And the decrypted message is:\n";
-	std::cout << pCleartext.get();
+	unsigned startTryKL = 29;
+	unsigned endTryKL = 29;
+	for (unsigned keyLength = startTryKL; keyLength <= endTryKL; keyLength++) {
+		std::unique_ptr<byte[]> spWholeKey = std::unique_ptr<byte[]>(new byte[keyLength]);
+		byte* pKey = spWholeKey.get();
+
+		std::unique_ptr<char[]> pCleartext = crypto_utils::decodeUsingFixedKeyLength(pBinBuf, binCnt, pKey, keyLength);
+
+		std::cout << "\n\nDecrypted with keyLength " << keyLength << std::endl;
+		dbg_utils::displayBytes("Key bytes: ", pKey, keyLength);
+
+		std::cout << pCleartext.get();
+	}
 
 	return true;
 }
@@ -254,7 +234,7 @@ bool Challenges::Set1Ch6x()
 	
 	size_t base64Cnt = 0;
 	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pInFile, base64Cnt);
-	if (!pBase64Buf || !pBase64Buf.get()) {
+	if (!pBase64Buf || !pBase64Buf.get() || base64Cnt == 0) {
 		return false;
 	}
 

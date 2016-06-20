@@ -147,11 +147,24 @@ std::unique_ptr<char[]> io_utils::stripCRLF(const char* pCharBuf, size_t inCnt, 
 	return pStrippedBuffer;
 }
 
-void dbg_utils::displayBytes(const byte* pBytes, size_t cnt)
+void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt)
 {
+	std::cout << std::endl << "DEBUG: ";
+	std::cout << pIntroStr;
 	for (size_t i=0; i<cnt; i++) {
-		std::cout << pBytes[i];
+		char buf[8];
+		sprintf_s(buf, _countof(buf), "0x%2x ", pBytes[i]);
+		std::cout << buf;
 	}
+	for (size_t i = 0; i < cnt; i++) {
+		if (pBytes[i] >= 0x20 && pBytes[i] < 0x7f) {
+			std::cout << pBytes[i];
+		}
+		else {
+			std::cout << '.';
+		}
+	}
+
 	std::cout << std::endl;
 }
 
@@ -441,10 +454,10 @@ int crypto_utils::rateANSI(byte* pByteArray, size_t cnt)
 	}
 
 	// Return total score normalized by buffer length
-	return static_cast<int>((score*100)/cnt);
+	return (score > 0) ? (score * 100) / (int)cnt : 0;
 }
 
-std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const char* pHexBuf, const size_t inCnt, unsigned& o_key, int& o_score)
+std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsiH(const char* pHexBuf, const size_t inCnt, unsigned& o_key, int& o_score)
 {
 	// XOR the given text buffer against all possible single-byte keys
 	// and return one with the highest ANSI frequency rating.
@@ -486,7 +499,7 @@ std::unique_ptr<char[]> crypto_utils::checkSingleByteXORAnsi(const byte* pInBuf,
 		for (size_t i = 0; i < inCnt; i++) {
 			pTb[i] = (pInBuf[i] ^ xval);
 		}
-		int score = crypto_utils::rateANSI(pTestBuf.get(), inCnt);
+		int score = crypto_utils::rateANSI(pTb, inCnt);
 		if (score > highestScore) {
 			bestX = xval;
 			highestScore = score;
@@ -573,20 +586,64 @@ unsigned crypto_utils::getKeyLengthRatings(const byte* pBytes, unsigned stKeyLen
 	//     the key length with the lowest Hamming distance is likely the correct one
 
 	unsigned bestKeyLen = 0;
-	unsigned bestRating = 0xffffffff;
+	float bestRating = 100000.0;
 
-	for (unsigned key = stKeyLen; key <= endKeyLen; key++) {
+	for (unsigned keyLen = stKeyLen; keyLen <= endKeyLen; keyLen++) {
 
 		const byte* pChunk1 = pBytes;
-		const byte* pChunk2 = pBytes + key;
+		const byte* pChunk2 = pChunk1 + keyLen;
+		const byte* pChunk3 = pChunk2 + keyLen;
+		const byte* pChunk4 = pChunk3 + keyLen;
 
-		unsigned normalizedDist = crypto_utils::hammingDistance(pChunk1, key, pChunk2, key) / key;
-		keyLengthRatings[key] = normalizedDist;
+		unsigned hd1 = crypto_utils::hammingDistance(pChunk1, keyLen, pChunk2, keyLen);
+		unsigned hd2 = crypto_utils::hammingDistance(pChunk3, keyLen, pChunk4, keyLen);
+		
+		float normalizedDist = ((float)hd1 + (float)hd2)/ (2.0f * (float)keyLen);
+		keyLengthRatings[keyLen] = normalizedDist;
 
 		if (normalizedDist < bestRating) {
-			bestKeyLen = key;
+			bestKeyLen = keyLen;
 			bestRating = normalizedDist;
 		}
 	}
 	return bestKeyLen;
+}
+
+std::unique_ptr<char[]> crypto_utils::decodeUsingFixedKeyLength(const byte* pBinBuf, size_t binCnt, byte* pKey, size_t keyLength)
+{
+	std::vector<std::unique_ptr<char[]>> vBlockDecodings;
+
+	// Break input into KEYLEN-sized blocks
+	unsigned wholeBlocks = static_cast<unsigned>(binCnt / keyLength);
+	unsigned extraBytes = static_cast<unsigned>(binCnt % keyLength);
+
+	for (unsigned keyPos = 0; keyPos < keyLength; keyPos++) {
+
+		unsigned bytesInBlock = keyPos < extraBytes ? wholeBlocks + 1 : wholeBlocks;
+		std::unique_ptr<byte[]> pBytes = std::unique_ptr<byte[]>(new byte[bytesInBlock]);
+		byte* pDest = pBytes.get();
+		const byte* pSrc = &pBinBuf[keyPos];
+		for (unsigned b = 0; b < bytesInBlock; b++) {
+			*pDest++ = *pSrc;
+			pSrc += keyLength;
+		}
+		unsigned keyByte = 0;
+		int score = 0;
+		std::unique_ptr<char[]> pDecodedStr = crypto_utils::checkSingleByteXORAnsi(pBytes.get(), bytesInBlock, keyByte, score);
+		vBlockDecodings.push_back(std::move(pDecodedStr));
+		pKey[keyPos] = keyByte;
+	}
+
+	// Assemble the output message from the decoded individual blocks
+	std::unique_ptr<char[]> pCleartext = std::unique_ptr<char[]>(new char[binCnt + 1]);
+	char* pCleartextBuf = pCleartext.get();
+	for (size_t b = 0; b < binCnt; b++) {
+		*pCleartextBuf++ = vBlockDecodings[b%keyLength][b / keyLength];  // TODO - recode for efficiency
+	}
+
+	// Alternatively (checked: we get the same answer):
+	// Decode the whole message with the full computed key and see if it's the same as what we got above
+	//std::unique_ptr<char[]> pCleartext = crypto_utils::decryptRepeatingKey(pBinBuf, binCnt, pKey, keyLength);
+
+	return pCleartext;
 }

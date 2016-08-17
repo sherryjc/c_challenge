@@ -251,3 +251,39 @@ bool Challenges::Set1Ch6x()
 	std::cout << "Wrote " << nWritten << " bytes to " << outputFile2 << std::endl;
 	return bRc;
 }
+
+bool Challenges::Set1Ch7()
+{
+	// AES in ECB mode
+	// In ECB mode, each block is just encrypted with the same key. Not secure, of course.
+
+	static const char* pInFile = "./data/set1/challenge7/input.txt";
+	static const char* outputFile = "./data/set1/challenge7/decrypted.txt";
+	static const char* outputFileHex = "./data/set1/challenge7/decryptedHex.txt";
+
+	size_t base64Cnt = 0;
+	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pInFile, base64Cnt);
+	if (!pBase64Buf || !pBase64Buf.get() || base64Cnt == 0) {
+		return false;
+	}
+
+	size_t binCnt = 0;
+	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt);
+	const byte* pBinBuf = pBinBytes.get();
+	std::cout << "Read " << base64Cnt << " base64 bytes, resulted in " << binCnt << " raw bytes" << std::endl;
+
+	static const byte bKey[] = "YELLOW SUBMARINE";  
+	std::string key("YELLOW SUBMARINE");
+	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pBinBytes.get(), binCnt, bKey, key.length());  // see above
+	size_t nWritten = io_utils::writeBinFile(outputFile, pRoundTrip.get(), binCnt);
+	bool bRc = (nWritten == binCnt);
+	std::cout << "Wrote " << nWritten << " bytes to " << outputFile << std::endl;
+
+	size_t hexCnt = 0;
+	std::unique_ptr<char[]> pResultsHex = crypto_utils::binToHex((byte*)(pRoundTrip.get()), binCnt, hexCnt);
+	std::string ostr(pResultsHex.get());
+	nWritten = io_utils::writeTextFile(outputFileHex, ostr.c_str(), ostr.length());
+	std::cout << "Wrote " << nWritten << " hex characters to " << outputFileHex << std::endl;
+
+	return bRc;
+}

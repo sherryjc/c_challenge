@@ -655,10 +655,14 @@ std::unique_ptr<char[]> crypto_utils::decodeUsingFixedKeyLength(const byte* pBin
 
 std::unique_ptr<char[]> crypto_utils::decryptAes128Ecb(const byte* pBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen)
 {
+	if (!pBuf || bufCnt == 0 || keyLen == 0) {
+		return nullptr;
+	}
+
 	static const size_t NRounds = 10;   // Key size of 128 has 10 rounds
 	static const size_t NBlockColumns = 4;  // Block size/32, i.e. 128/32
 	
-	size_t nKeyColumns = keyLen / 32;
+	const size_t nKeyColumns = keyLen / 32;
 
 /* 
 	KeyExpansion(CipherKey, ExpandedKey);    
@@ -676,9 +680,6 @@ std::unique_ptr<char[]> crypto_utils::decryptAes128Ecb(const byte* pBuf, const s
 
 */
 
-	if (!pBuf || bufCnt == 0 || keyLen == 0) {
-		return nullptr;
-	}
 
 	std::unique_ptr<char[]> pTxt = std::unique_ptr<char[]>(new char[bufCnt + 1]);
 	char* pT = pTxt.get();

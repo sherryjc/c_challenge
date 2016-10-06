@@ -198,6 +198,7 @@ bool Challenges::Set1Ch6()
 	// Compute the most likely key length
 	unsigned startKeyLen = 2;
 	unsigned endKeyLen = 40;
+	// Correct key length is 29 but that is not even close to being rated the best length
 	crypto_utils::KeyLengthRatings keyLengthRatings;
 	unsigned bestKeyLength = crypto_utils::getKeyLengthRatings(pBinBuf, startKeyLen, endKeyLen, keyLengthRatings);
 
@@ -208,8 +209,8 @@ bool Challenges::Set1Ch6()
 		std::cout << "Length: " << entry.first << "  Rating: " << entry.second << std::endl;
 	}
 
-	unsigned startTryKL = 29;
-	unsigned endTryKL = 29;
+	unsigned startTryKL = 2;
+	unsigned endTryKL = 40;
 	for (unsigned keyLength = startTryKL; keyLength <= endTryKL; keyLength++) {
 		std::unique_ptr<byte[]> spWholeKey = std::unique_ptr<byte[]>(new byte[keyLength]);
 		byte* pKey = spWholeKey.get();
@@ -255,11 +256,12 @@ bool Challenges::Set1Ch6x()
 bool Challenges::Set1Ch7()
 {
 	// AES in ECB mode
-	// In ECB mode, each block is just encrypted with the same key. Not secure, of course.
+	// In ECB mode, each block is just encrypted with the same key. Not secure, of course!
 
 	static const char* pInFile = "./data/set1/challenge7/input.txt";
 	static const char* outputFile = "./data/set1/challenge7/decrypted.txt";
 	static const char* outputFileHex = "./data/set1/challenge7/decryptedHex.txt";
+	static const char* inputFileHex = "./data/set1/challenge7/encryptedHex.txt";
 
 	size_t base64Cnt = 0;
 	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pInFile, base64Cnt);
@@ -272,18 +274,63 @@ bool Challenges::Set1Ch7()
 	const byte* pBinBuf = pBinBytes.get();
 	std::cout << "Read " << base64Cnt << " base64 bytes, resulted in " << binCnt << " raw bytes" << std::endl;
 
+#if 0
+	// Write out a hex version of the encrypted input (e.g. to paste to a web-site decryption tool)
+	size_t inpHexCnt = 0;
+	std::unique_ptr<char[]> pInputHex = crypto_utils::binToHex((byte*)(pBinBytes.get()), binCnt, inpHexCnt);
+	std::string hstr(pInputHex.get());
+	size_t nhWritten = io_utils::writeTextFile(inputFileHex, hstr.c_str(), hstr.length());
+	std::cout << "Wrote " << nhWritten << " hex characters to " << inputFileHex << std::endl;
+#endif
+
 	static const byte bKey[] = "YELLOW SUBMARINE";  
 	std::string key("YELLOW SUBMARINE");
-	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pBinBytes.get(), binCnt, bKey, key.length());  // see above
-	size_t nWritten = io_utils::writeBinFile(outputFile, pRoundTrip.get(), binCnt);
+
+	std::unique_ptr<char[]> pDecrypted = crypto_utils::decryptAes128Ecb(pBinBytes.get(), binCnt, bKey, key.length());
+
+	size_t nWritten = io_utils::writeBinFile(outputFile, pDecrypted.get(), binCnt);
 	bool bRc = (nWritten == binCnt);
 	std::cout << "Wrote " << nWritten << " bytes to " << outputFile << std::endl;
 
+#if 0
+	// Write out the decrypted file in hex
 	size_t hexCnt = 0;
-	std::unique_ptr<char[]> pResultsHex = crypto_utils::binToHex((byte*)(pRoundTrip.get()), binCnt, hexCnt);
+	std::unique_ptr<char[]> pResultsHex = crypto_utils::binToHex((byte*)(pDecrypted.get()), binCnt, hexCnt);
 	std::string ostr(pResultsHex.get());
 	nWritten = io_utils::writeTextFile(outputFileHex, ostr.c_str(), ostr.length());
 	std::cout << "Wrote " << nWritten << " hex characters to " << outputFileHex << std::endl;
-
+#endif
 	return bRc;
+}
+
+bool Challenges::Set1Ch7x()
+{
+	// Write out a hex file - the challenge7 file decrypted by an AES 128 ECB web-site tool 
+
+	static const char* outputFile = "./data/set1/challenge7/decryptedWebSite.txt";
+	static const char* inputHex = "./data/set1/challenge7/decryptedHexWebSite.txt";
+
+	size_t bufCnt = 0;
+	std::unique_ptr<char[]>pTxtBuf = io_utils::readTextFileStripCRLF(inputHex, bufCnt);
+
+	if (!pTxtBuf || bufCnt == 0) {
+		std::cout << "Error reading input hex file\n";
+		return false;
+	}
+
+	size_t binCnt = 0;
+	std::unique_ptr<byte[]> pBinBuf = crypto_utils::hexToBin(pTxtBuf.get(), bufCnt, binCnt);
+
+	if (binCnt == 0 || !pBinBuf) {
+		std::cout << "Error converting hex to bin\n";
+		return false;
+	}
+
+	size_t outCnt = 0;
+	std::unique_ptr<char[]> pOutTxtBuf = crypto_utils::binToTxtANSI(pBinBuf.get(), binCnt, outCnt);
+	std::string ostr(pOutTxtBuf.get());
+	size_t nWritten = io_utils::writeTextFile(outputFile, ostr.c_str(), ostr.length());
+	std::cout << "Wrote " << nWritten << " text characters to " << outputFile << std::endl;
+
+	return true;
 }

@@ -53,4 +53,7 @@ namespace crypto_utils {
 	using KeyLengthRatings = std::unordered_map<unsigned, float>;
 	unsigned getKeyLengthRatings(const byte* pBytes, unsigned stKeyLen, unsigned endKeyLen, KeyLengthRatings& keyLengthRatings);
 	std::unique_ptr<char[]> decodeUsingFixedKeyLength(const byte* pBinBuf, size_t binCnt, byte* pKey, size_t keyLength);
+
+	std::unique_ptr<char[]> decryptAes128Ecb(const byte* pBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen);
+
 }

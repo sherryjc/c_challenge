@@ -447,9 +447,9 @@ int crypto_utils::rateANSI(byte* pByteArray, size_t cnt)
 
 	for (int i = 0; i < cnt; i++) {
 		int cRating = getANSIEnFreqPoints(pByteArray[i]);
-		if (cRating < 0) {
-			return 0;
-		}
+// 		if (cRating < 0) {
+// 			return 0;
+// 		}
 		score += cRating;
 	}
 
@@ -646,4 +646,48 @@ std::unique_ptr<char[]> crypto_utils::decodeUsingFixedKeyLength(const byte* pBin
 	//std::unique_ptr<char[]> pCleartext = crypto_utils::decryptRepeatingKey(pBinBuf, binCnt, pKey, keyLength);
 
 	return pCleartext;
+}
+
+
+//
+// AES
+//
+
+std::unique_ptr<char[]> crypto_utils::decryptAes128Ecb(const byte* pBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen)
+{
+	static const size_t NRounds = 10;   // Key size of 128 has 10 rounds
+	static const size_t NBlockColumns = 4;  // Block size/32, i.e. 128/32
+	
+	size_t nKeyColumns = keyLen / 32;
+
+/* 
+	KeyExpansion(CipherKey, ExpandedKey);    
+	AddRoundKey(state, ExpandedKey);        // bitwise XOR   
+	for (i = 1; i < Nr; i++) { 
+		Round(state, ExpandedKey + Nb*i); 
+	}    
+	FinalRound(state, ExpandedKey + Nb * Nr);    // Same as Round, except MixColumn omitted
+
+	In each round:
+	    SubBytes   (each byte in state replaced using S-Box)
+	    ShiftRow
+		MixColumn   (omitted in FinalRound)
+		AddRoundKey
+
+*/
+
+	if (!pBuf || bufCnt == 0 || keyLen == 0) {
+		return nullptr;
+	}
+
+	std::unique_ptr<char[]> pTxt = std::unique_ptr<char[]>(new char[bufCnt + 1]);
+	char* pT = pTxt.get();
+
+	for (size_t idx = 0; idx < bufCnt; idx++) {
+		pT[idx] = '?';  //  pBuf[idx] ^ pKey[idx % keyLen];
+	}
+	pT[bufCnt] = '\0';
+	return pTxt;
+
+
 }

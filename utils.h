@@ -3,7 +3,7 @@
 #include "stdafx.h"
 
 typedef unsigned char byte;
-
+typedef int word4;    // assuming sizeof(int) = 4; handle this 
 namespace io_utils {
 
 	enum _encoding {

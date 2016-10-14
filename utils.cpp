@@ -109,9 +109,9 @@ std::unique_ptr<char[]> io_utils::readTextFileStripCRLF(const char* pFileName, s
 	return pStrippedTxt;
 }
 
-size_t io_utils::writeBinFile(const char* pFileName, const char* pBuffer, size_t cch)
+size_t io_utils::writeBinFile(const char* pFileName, const byte* pBuffer, size_t cch)
 {
-	return writeTextFile(pFileName, pBuffer, cch, true);
+	return writeTextFile(pFileName, reinterpret_cast<const char*>(pBuffer), cch, true);
 }
 
 size_t io_utils::writeTextFile(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw)

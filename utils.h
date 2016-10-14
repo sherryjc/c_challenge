@@ -4,18 +4,23 @@
 
 typedef unsigned char byte;
 typedef int word4;    // assuming sizeof(int) = 4; handle this 
-namespace io_utils {
 
-	enum _encoding {
-		IO_UTILS_UNICODE,
-		IO_UTILS_UTF_8,
-		IO_UTILS_UTF_16LE
-	};
+typedef enum {
+	BINARY,
+	BASE64,
+	HEX,
+	ASCII,
+	UNICODE,
+	UTF_8,
+	UTF_16LE
+} FileType;
+
+namespace io_utils {
 
 	std::unique_ptr<byte[]> readBinFile(const char* pFileName, size_t& outCnt);
 	std::unique_ptr<char[]> readTextFile(const char* pFileName, size_t& outCnt);
 	std::unique_ptr<char[]> readTextFileStripCRLF(const char* pFileName, size_t& outCnt);
-	size_t writeBinFile(const char* pFileName, const char* pBuffer, size_t cch);
+	size_t writeBinFile(const char* pFileName, const byte* pBuffer, size_t cch);
 	size_t writeTextFile(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw=false);
 
 	std::unique_ptr<char[]> stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt);

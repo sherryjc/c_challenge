@@ -6,6 +6,7 @@
 
 #include "challenges.h"
 #include "utils.h"
+#include "aes.h"
 
 bool Challenges::Set1Ch1()
 {
@@ -259,20 +260,10 @@ bool Challenges::Set1Ch7()
 	// In ECB mode, each block is just encrypted with the same key. Not secure, of course!
 
 	static const char* pInFile = "./data/set1/challenge7/input.txt";
-	static const char* outputFile = "./data/set1/challenge7/decrypted.txt";
+	static const char* pOutputFile = "./data/set1/challenge7/decrypted.txt";
 	static const char* outputFileHex = "./data/set1/challenge7/decryptedHex.txt";
 	static const char* inputFileHex = "./data/set1/challenge7/encryptedHex.txt";
 
-	size_t base64Cnt = 0;
-	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pInFile, base64Cnt);
-	if (!pBase64Buf || !pBase64Buf.get() || base64Cnt == 0) {
-		return false;
-	}
-
-	size_t binCnt = 0;
-	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt);
-	const byte* pBinBuf = pBinBytes.get();
-	std::cout << "Read " << base64Cnt << " base64 bytes, resulted in " << binCnt << " raw bytes" << std::endl;
 
 #if 0
 	// Write out a hex version of the encrypted input (e.g. to paste to a web-site decryption tool)
@@ -286,11 +277,14 @@ bool Challenges::Set1Ch7()
 	static const byte bKey[] = "YELLOW SUBMARINE";  
 	std::string key("YELLOW SUBMARINE");
 
-	std::unique_ptr<char[]> pDecrypted = crypto_utils::decryptAes128Ecb(pBinBytes.get(), binCnt, bKey, key.length());
+	Aes aes(128);
+	aes.SetKey(bKey, key.length());
+	aes.ReadBase64(pInFile);
+	aes.Decrypt();
+	size_t nWritten = aes.WriteBin(pOutputFile);
 
-	size_t nWritten = io_utils::writeBinFile(outputFile, pDecrypted.get(), binCnt);
-	bool bRc = (nWritten == binCnt);
-	std::cout << "Wrote " << nWritten << " bytes to " << outputFile << std::endl;
+	bool bRc = (nWritten != 0); 
+	std::cout << "Wrote " << nWritten << " bytes to " << pOutputFile << std::endl;
 
 #if 0
 	// Write out the decrypted file in hex

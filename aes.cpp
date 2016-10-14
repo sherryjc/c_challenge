@@ -64,18 +64,31 @@ static byte Rcon[255] = {
 	0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 0x33,
 	0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb };
 
+namespace AES
+{
+	byte GetSBoxValue(byte num);
+	byte GetSBoxInvert(byte num);
+	byte GetRconValue(byte num);
+	void Rotate(byte *word);
+	void Core(byte *word, byte iteration);
+	void ExpandKey(byte *pExpandedKey, const byte *pKey, const size_t szKey, const size_t szExpandedKey);
+	void AddRoundKey(byte* pState, byte* pRoundKey, size_t cnt);
+	void EncryptRound(byte* pState, byte* pRoundKey, size_t cnt, bool bFinal=false);
+	void DecryptRound(byte* pState, byte* pRoundKey, size_t cnt, bool bFinal=false);
+	void EncryptBlock128(byte* pCipherTxt, const byte* pPlainTxt, const byte* pKey, const size_t keyLenBytes);
+}
 
-static byte _getSBoxValue(byte num) 
+byte AES::GetSBoxValue(byte num) 
 { 
 	return sbox[num]; 
 }
 
-static byte _getSBoxInvert(byte num) 
+byte AES::GetSBoxInvert(byte num) 
 { 
 	return rsbox[num]; 
 }
 
-static byte _getRconValue(byte num)
+byte AES::GetRconValue(byte num)
 {
 	return Rcon[num];
 }
@@ -87,7 +100,7 @@ static byte _getRconValue(byte num)
  *
  * word is an char array of size 4 (32 bit)
  */
-static void _rotate(unsigned char *word)
+void AES::Rotate(byte *word)
 {
 	byte c = word[0];
 	for (size_t i = 0; i < 3; i++)
@@ -97,17 +110,17 @@ static void _rotate(unsigned char *word)
 	word[3] = c;
 }
 
-static void _core(byte *word, byte iteration)
+void AES::Core(byte *word, byte iteration)
 {   
 	/* rotate the 32-bit word 8 bits to the left */
-	_rotate(word);
+	AES::Rotate(word);
 	/* apply S-Box substitution on all 4 parts of the 32-bit word */
 	for (size_t i = 0; i < 4; ++i)
 	{
-		word[i] = _getSBoxValue(word[i]);
+		word[i] = AES::GetSBoxValue(word[i]);
 	}
 	/* XOR the output of the rcon operation with i to the first part (leftmost) only */
-	word[0] = word[0] ^ _getRconValue(iteration);
+	word[0] = word[0] ^ AES::GetRconValue(iteration);
 }
 
 /* Rijndael's key expansion  
@@ -116,7 +129,7 @@ static void _core(byte *word, byte iteration)
  * expandedKey is a pointer to an char array of large enough size
  * key is a pointer to a non-expanded key
  */
-static void _expandKey(byte *pExpandedKey, byte *pKey, size_t szKey, size_t szExpandedKey) 
+void AES::ExpandKey(byte *pExpandedKey, const byte *pKey, const size_t szKey, const size_t szExpandedKey) 
 {
 	size_t currentSize = 0;
 	byte rconIteration = 1;
@@ -140,7 +153,7 @@ static void _expandKey(byte *pExpandedKey, byte *pKey, size_t szKey, size_t szEx
 		// every szKey {16,24,32} bytes we apply the core schedule to t and increment rconIteration afterwards
 		if(currentSize % szKey == 0)
 		{
-			_core(t, rconIteration++);
+			AES::Core(t, rconIteration++);
 		}
 		
 		// For 256-bit keys, we add an extra sbox to the calculation 
@@ -148,7 +161,7 @@ static void _expandKey(byte *pExpandedKey, byte *pKey, size_t szKey, size_t szEx
 		{
 			for (size_t i = 0; i < 4; i++)
 			{
-				t[i] = _getSBoxValue(t[i]);
+				t[i] = AES::GetSBoxValue(t[i]);
 			}
 		}
 
@@ -162,17 +175,51 @@ static void _expandKey(byte *pExpandedKey, byte *pKey, size_t szKey, size_t szEx
 	}
 }
 
-std::unique_ptr<char[]> crypto_utils::decryptAes128Ecb(const byte* pBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen)
+void AES::AddRoundKey(byte* pState, byte* pRoundKey, size_t cnt)
 {
-	if (!pBuf || bufCnt == 0 || keyLen == 0) {
-		return nullptr;
+	for (size_t i = 0; i < cnt; ++i)
+	{
+		pState[i] = pState[i] ^ pRoundKey[i];
+	}
+}
+
+/*In each round :
+SubBytes(each byte in state replaced using S - Box)
+ShiftRow
+MixColumn(omitted in FinalRound)
+AddRoundKey
+*/
+
+void AES::EncryptRound(byte* pState, byte* pRoundKey, size_t cnt, bool bFinal)
+{
+	for (size_t i = 0; i < cnt; ++i) {
+		pState[i] = GetSBoxValue(pState[i]);
+	}
+}
+
+void AES::EncryptBlock128(byte* pCipher, const byte* pPlain, const byte* pKey, const size_t keyLenBytes)
+{
+	static const size_t kBlockSizeBits = 128;
+	static const size_t kBlockSizeBytes = 16; 
+	static const size_t kRounds = 10;   // Key size of 128 has 10 rounds
+	static const size_t kBlockColumns = 4;  // Block size/32, i.e. 128/32
+	static const size_t kExpandedKeySize = 176;
+	const size_t nKeyColumns = keyLenBytes / 4;
+
+	byte expandedKey[kExpandedKeySize] = { 0 };
+
+	// Initialize the cipher text ("state") to the plain text
+	for (size_t i = 0; i < kBlockSizeBytes; ++i)
+	{
+		pCipher[i] = pPlain[i];
 	}
 
-	static const size_t nRounds = 10;   // Key size of 128 has 10 rounds
-	static const size_t nBlockColumns = 4;  // Block size/32, i.e. 128/32
-
-	const size_t nKeyColumns = keyLen / 32;
-
+	AES::ExpandKey(expandedKey, pKey, keyLenBytes, kExpandedKeySize);
+	AES::AddRoundKey(pCipher, expandedKey, kBlockSizeBytes);
+	for (size_t i = 0; i < kRounds; ++i)
+	{
+		AES::EncryptRound(pCipher, expandedKey, kBlockSizeBytes);
+	}
 	/*
 	KeyExpansion(CipherKey, ExpandedKey);
 	AddRoundKey(state, ExpandedKey);        // bitwise XOR
@@ -181,11 +228,6 @@ std::unique_ptr<char[]> crypto_utils::decryptAes128Ecb(const byte* pBuf, const s
 	}
 	FinalRound(state, ExpandedKey + Nb * Nr);    // Same as Round, except MixColumn omitted
 
-	In each round:
-	SubBytes   (each byte in state replaced using S-Box)
-	ShiftRow
-	MixColumn   (omitted in FinalRound)
-	AddRoundKey
 
 	*/
 
@@ -199,5 +241,13 @@ std::unique_ptr<char[]> crypto_utils::decryptAes128Ecb(const byte* pBuf, const s
 	pT[bufCnt] = '\0';
 	return pTxt;
 
+
+}
+
+void crypto_utils::decryptAes128Ecb(byte* pOutBuf, const byte* pInBuf, const size_t bufCnt, const byte* pKey, const size_t keyLen)
+{
+	if (!pInBuf || !pOutBuf || bufCnt == 0 || keyLen == 0) {
+		return;
+	}
 
 }

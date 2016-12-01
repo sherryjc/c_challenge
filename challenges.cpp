@@ -346,7 +346,6 @@ bool Challenges::Set1Ch7y()
 
 	std::cout << "Wrote " << nWritten << " binary characters to encrypted file " << pEncFile << std::endl;
 
-#if 0
 	Aes aes2(128);
 	aes2.SetKey(bKey, key.length());
 	aes2.Read(pEncFile, FileType::BINARY);
@@ -356,6 +355,4 @@ bool Challenges::Set1Ch7y()
 	std::cout << "Wrote " << nWritten2 << " binary characters to decrypted file " << pOutFile << std::endl;
 
 	return nWritten == nWritten2;
-#endif
-	return true;
 }

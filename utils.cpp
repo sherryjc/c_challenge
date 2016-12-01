@@ -305,7 +305,7 @@ upByteArr crypto_utils::txtANSIToBin(const char* pBuf, size_t inCnt, size_t& out
 	if (!pBuf || inCnt == 0) {
 		return nullptr;
 	}
-	auto pOutBuf = upByteArr(new byte[inCnt]);
+	auto pOutBuf = upByteArr(new byte[inCnt+1]);
 	for (size_t i = 0; i < inCnt; i++) {
 		// check for null char and quite? if (pBuf[i] == '\0') ..
 		pOutBuf[i] = static_cast<byte>(pBuf[i]);

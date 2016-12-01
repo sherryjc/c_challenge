@@ -6,16 +6,25 @@ class Aes
 {
 public:
 	Aes(size_t nBlockSizeBits);
+	~Aes();
 
 	size_t Read(const char* pFilename, FileType fType);
-	size_t ReadBase64(const char* pFilename);
+
 	size_t Write(const char* pFilename, FileType fType);
-	size_t WriteBin(const char* pFilename);
+
 	void SetKey(const byte* pKey, const size_t keyLen);
 	void Encrypt();
 	void Decrypt();
 
 private:
+	size_t ReadBin(const char* pFilename);
+	size_t ReadAscii(const char* pFilename);
+	size_t ReadBase64(const char* pFilename);
+
+	size_t WriteBin(const char* pFilename);
+
+	void InitOutput(size_t sz);
+
 	byte GetSBoxValue(byte num);
 	byte GetSBoxInvert(byte num);
 	byte GetRconValue(byte num);

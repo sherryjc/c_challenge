@@ -7,7 +7,7 @@
 #include "aes.h"
 
 static byte sbox[256] = {
-	//0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
+	//0     1    2     3     4     5     6     7     8     9     A     B     C     D     E     F
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, //0
 	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0, //1
 	0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15, //2
@@ -88,19 +88,59 @@ Aes::Aes(size_t nBlockSizeBits) :
 	}
 }
 
+Aes::~Aes()
+{
+}
+
 size_t Aes::Read(const char* pFilename, FileType fType)
 {
-	return 0;
+	size_t nRead = 0;
+
+	switch (fType) {
+	case ASCII:
+		nRead = ReadAscii(pFilename);
+		break;
+	case BINARY:
+		nRead = ReadBin(pFilename);
+		break;
+	case BASE64:
+		nRead = ReadBase64(pFilename);
+		break;
+	default:
+		break;
+	}
+	return nRead;
 }
 
-size_t Aes::Write(const char* pFilename, FileType fType)
+size_t Aes::ReadBin(const char* pFilename)
 {
-	return 0;
+	size_t binCnt = 0;
+	std::unique_ptr<byte[]> pBin = io_utils::readBinFile(pFilename, binCnt);
+	if (!pBin || !pBin.get() || binCnt == 0) {
+		return 0;
+	}
+	m_pInput = std::move(pBin);
+	m_nInputSize = binCnt;
+
+	// Output size is same as binary input - allocate the buffer now
+	InitOutput(m_nInputSize);
+	return m_nInputSize;
 }
 
-size_t Aes::WriteBin(const char* pFilename)
+size_t Aes::ReadAscii(const char* pFilename)
 {
-	return io_utils::writeBinFile(pFilename, m_pOutput.get(), m_nOutputSize);
+	size_t charCnt = 0;
+	std::unique_ptr<char[]> pTxt = io_utils::readTextFile(pFilename, charCnt);
+	if (!pTxt || !pTxt.get() || charCnt == 0) {
+		return 0;
+	}
+	size_t binCnt = 0;
+	m_pInput = std::move(crypto_utils::txtANSIToBin(pTxt.get(), charCnt, binCnt));
+	m_nInputSize = binCnt;
+
+	// Output size is same as binary input - allocate the buffer now
+	InitOutput(m_nInputSize);
+	return m_nInputSize;
 }
 
 size_t Aes::ReadBase64(const char* pFilename)
@@ -115,11 +155,42 @@ size_t Aes::ReadBase64(const char* pFilename)
 	m_pInput = std::move(crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt));
 	m_nInputSize = binCnt;
 
-	// Output size is same as input - allocate the buffer now
-	m_nOutputSize = m_nInputSize;
-	m_pOutput.reset(new byte[m_nOutputSize]);
-
+	// Output size is same as binary input - allocate the buffer now
+	InitOutput(m_nInputSize);
 	return m_nInputSize;
+}
+
+size_t Aes::Write(const char* pFilename, FileType fType)
+{
+	size_t nWritten = 0;
+
+	switch (fType) {
+	case ASCII:
+		//nWritten = WriteAscii(pFilename);
+		break;
+	case BINARY:
+		nWritten = WriteBin(pFilename);
+		break;
+	case BASE64:
+		//nWritten = WriteBase64(pFilename);
+		break;
+	default:
+		break;
+	}
+	return nWritten;
+}
+
+size_t Aes::WriteBin(const char* pFilename)
+{
+	return io_utils::writeBinFile(pFilename, m_pOutput.get(), m_nOutputSize);
+}
+
+void Aes::InitOutput(size_t sz)
+{
+	byte* b = new byte[sz];
+	SecureZeroMemory(b, sz);
+	m_pOutput.reset(b);
+	m_nOutputSize = sz;
 }
 
 
@@ -140,13 +211,19 @@ void Aes::SetKey(const byte* pKey, const size_t keyLen)
 void Aes::Encrypt()
 {
 	// 128-bit ECB mode
+	byte* pState = m_pOutput.get();
+	byte* pInput = m_pInput.get();
+	size_t inputIdx = 0;
+
+	while (inputIdx < m_nInputSize)
+	{
+		EncryptBlock(pState, pInput);
+		inputIdx += m_nBlockSize;
+		pState += m_nBlockSize;
+		pInput += m_nBlockSize;
+	}
 
 }
-size_t m_nInputSize;
-size_t m_nOutputSize;
-
-std::unique_ptr<byte[]>	m_pInput;
-std::unique_ptr<byte[]>	m_pOutput;
 
 void Aes::Decrypt()
 {
@@ -384,6 +461,11 @@ void Aes::MixColumnInvert(byte* pState)
 
 void Aes::EncryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 {
+	// Substitution
+	// Shift rows
+	// Mix columns
+	// Add Round Key
+
 	for (size_t i = 0; i < m_nBlockSize; ++i) {
 		pState[i] = GetSBoxValue(pState[i]);
 	}
@@ -396,14 +478,19 @@ void Aes::EncryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 
 void Aes::DecryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 {
-	for (size_t i = 0; i < m_nBlockSize; ++i) {
-		pState[i] = GetSBoxInvert(pState[i]);
-	}
-	ShiftRowRight(pState);
+	// Add Round Key
+	// Mix columns
+	// Shift rows
+	// Substitution
+
+	AddRoundKey(pState, pRoundKey);
 	if (!bFinal) {
 		MixColumnInvert(pState);
 	}
-	AddRoundKey(pState, pRoundKey);
+	ShiftRowRight(pState);
+	for (size_t i = 0; i < m_nBlockSize; ++i) {
+		pState[i] = GetSBoxInvert(pState[i]);
+	}
 }
 
 void Aes::EncryptBlock(byte* pOutput, const byte* pInput)

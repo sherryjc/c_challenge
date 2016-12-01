@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 	//bRc &= Challenges::Set1Ch4();
 	//bRc &= Challenges::Set1Ch5();
 	//bRc &= Challenges::Set1Ch6();
-	bRc &= Challenges::Set1Ch7();
+	bRc &= Challenges::Set1Ch7y();
 
 	return bRc == true ? 0 : 1;
 }

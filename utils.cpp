@@ -37,7 +37,7 @@ void io_utils::logError(const char* str)
 	fprintf(stderr, "Error: %s\n", str);
 }
 
-std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& outSz)
+upByteArr io_utils::readBinFile(const char* pFileName, size_t& outSz)
 {
 	outSz = 0;
 	FILE* pFile = fopen(pFileName, "rb");
@@ -52,7 +52,7 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& out
 	rewind(pFile);
 
 	// allocate memory to contain the whole file:
-	std::unique_ptr<byte[]>pBuffer = std::unique_ptr<byte[]>(new byte[lSize]);
+	upByteArr pBuffer = upByteArr(new byte[lSize]);
 	if (nullptr == pBuffer) { 
 		logError("new"); 
 		fclose(pFile);
@@ -69,7 +69,7 @@ std::unique_ptr<byte[]> io_utils::readBinFile(const char* pFileName, size_t& out
 	return pBuffer;
 }
 
-std::unique_ptr<char[]> io_utils::readTextFile(const char* pFileName, size_t& outCnt)
+upCharArr io_utils::readTextFile(const char* pFileName, size_t& outCnt)
 {
 	FILE * pFile = fopen(pFileName, "r");
 	if (nullptr == pFile) {
@@ -83,7 +83,7 @@ std::unique_ptr<char[]> io_utils::readTextFile(const char* pFileName, size_t& ou
 	rewind(pFile);
 
 	// allocate memory to contain the whole file:
-	std::unique_ptr<char[]>pBuffer = std::unique_ptr<char[]>(new char[lSize+1]);
+	upCharArr pBuffer = upCharArr(new char[lSize+1]);
 	if (nullptr == pBuffer) {
 		logError("new");
 		fclose(pFile);
@@ -101,11 +101,11 @@ std::unique_ptr<char[]> io_utils::readTextFile(const char* pFileName, size_t& ou
 	return pBuffer;
 }
 
-std::unique_ptr<char[]> io_utils::readTextFileStripCRLF(const char* pFileName, size_t& outCnt)
+upCharArr io_utils::readTextFileStripCRLF(const char* pFileName, size_t& outCnt)
 {
 	size_t readCnt = 0;
-	std::unique_ptr<char[]> pTxt = io_utils::readTextFile(pFileName, readCnt);
-	std::unique_ptr<char[]> pStrippedTxt = stripCRLF(pTxt.get(), readCnt, outCnt);
+	upCharArr pTxt = io_utils::readTextFile(pFileName, readCnt);
+	upCharArr pStrippedTxt = stripCRLF(pTxt.get(), readCnt, outCnt);
 	return pStrippedTxt;
 }
 
@@ -131,7 +131,7 @@ size_t io_utils::writeTextFile(const char* pFileName, const char* pBuffer, size_
 }
 
 
-std::unique_ptr<char[]> io_utils::stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt)
+upCharArr io_utils::stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt)
 {
 	std::unique_ptr<char[]>pStrippedBuffer = std::unique_ptr<char[]>(new char[inCnt + 1]);
 	char* pDest = pStrippedBuffer.get();
@@ -263,13 +263,13 @@ std::unique_ptr<byte[]> crypto_utils::hexToBin(const char* pHexBuf, size_t inCnt
 	return pOutBuf;
 }
 
-std::unique_ptr<char[]> crypto_utils::binToHex(const byte* pBuf, size_t inCnt, size_t& outCnt)
+upCharArr crypto_utils::binToHex(const byte* pBuf, size_t inCnt, size_t& outCnt)
 {
 	if (!pBuf || inCnt == 0) {
 		return nullptr;
 	}
 	outCnt = 0;
-	std::unique_ptr<char[]>pOutBuf = std::unique_ptr<char[]>(new char[inCnt*2 + 1]);
+	auto pOutBuf = upCharArr(new char[inCnt*2 + 1]);
 	for (size_t i = 0; i < inCnt; i++) {
 		byte b = pBuf[i];
 		byte b0 = b & 0xf;  		// lower nibble 
@@ -281,12 +281,12 @@ std::unique_ptr<char[]> crypto_utils::binToHex(const byte* pBuf, size_t inCnt, s
 	return pOutBuf;
 }
 
-std::unique_ptr<char[]> crypto_utils::binToTxtANSI(const byte* pBuf, size_t inCnt, size_t& outCnt)
+upCharArr crypto_utils::binToTxtANSI(const byte* pBuf, size_t inCnt, size_t& outCnt)
 {
 	if (!pBuf || inCnt == 0) {
 		return nullptr;
 	}
-	std::unique_ptr<char[]>pOutBuf = std::unique_ptr<char[]>(new char[inCnt + 1]);
+	auto pOutBuf = upCharArr(new char[inCnt + 1]);
 	for (size_t i = 0; i < inCnt; i++) {
 		if (pBuf[i] > 0x7f) {
 			pOutBuf[i] = '.';
@@ -296,10 +296,25 @@ std::unique_ptr<char[]> crypto_utils::binToTxtANSI(const byte* pBuf, size_t inCn
 		}
 	}
 	pOutBuf[inCnt] = '\0';
+	outCnt = inCnt;
 	return pOutBuf;
 }
 
-std::unique_ptr<char[]> crypto_utils::binToBase64(const byte* pBuf, size_t inCnt, size_t& outCnt)
+upByteArr crypto_utils::txtANSIToBin(const char* pBuf, size_t inCnt, size_t& outCnt)
+{
+	if (!pBuf || inCnt == 0) {
+		return nullptr;
+	}
+	auto pOutBuf = upByteArr(new byte[inCnt]);
+	for (size_t i = 0; i < inCnt; i++) {
+		// check for null char and quite? if (pBuf[i] == '\0') ..
+		pOutBuf[i] = static_cast<byte>(pBuf[i]);
+	}
+	outCnt = inCnt;
+	return pOutBuf;
+}
+
+upCharArr crypto_utils::binToBase64(const byte* pBuf, size_t inCnt, size_t& outCnt)
 {
 	if (!pBuf || inCnt == 0) {
 		return nullptr;
@@ -310,7 +325,7 @@ std::unique_ptr<char[]> crypto_utils::binToBase64(const byte* pBuf, size_t inCnt
 	outCnt = 0;
 	size_t ip = 0;
 
-	std::unique_ptr<char[]>pOutBuf = std::unique_ptr<char[]>(new char[outBufSz]);
+	upCharArr pOutBuf = std::unique_ptr<char[]>(new char[outBufSz]);
 
 	for (size_t i = 0; i < groups; i++) {
 		char c0 = pBuf[ip++];

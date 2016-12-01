@@ -279,9 +279,9 @@ bool Challenges::Set1Ch7()
 
 	Aes aes(128);
 	aes.SetKey(bKey, key.length());
-	aes.ReadBase64(pInFile);
+	aes.Read(pInFile, FileType::BASE64);
 	aes.Decrypt();
-	size_t nWritten = aes.WriteBin(pOutputFile);
+	size_t nWritten = aes.Write(pOutputFile, FileType::BINARY);
 
 	bool bRc = (nWritten != 0); 
 	std::cout << "Wrote " << nWritten << " bytes to " << pOutputFile << std::endl;
@@ -326,5 +326,36 @@ bool Challenges::Set1Ch7x()
 	size_t nWritten = io_utils::writeTextFile(outputFile, ostr.c_str(), ostr.length());
 	std::cout << "Wrote " << nWritten << " text characters to " << outputFile << std::endl;
 
+	return true;
+}
+
+bool Challenges::Set1Ch7y()
+{
+	static const char* pInFile = "./data/set1/challenge7/test_input.txt";
+	static const char* pEncFile = "./data/set1/challenge7/test_input_enc.bin";
+	static const char* pOutFile = "./data/set1/challenge7/test_input_dec.txt";
+
+	static const byte bKey[] = "YELLOW SUBMARINE";
+	std::string key("YELLOW SUBMARINE");
+
+	Aes aes(128);
+	aes.SetKey(bKey, key.length());
+	aes.Read(pInFile, FileType::ASCII);
+	aes.Encrypt();
+	size_t nWritten = aes.Write(pEncFile, FileType::BINARY);
+
+	std::cout << "Wrote " << nWritten << " binary characters to encrypted file " << pEncFile << std::endl;
+
+#if 0
+	Aes aes2(128);
+	aes2.SetKey(bKey, key.length());
+	aes2.Read(pEncFile, FileType::BINARY);
+	aes2.Decrypt();
+	size_t nWritten2 = aes2.Write(pOutFile, FileType::BINARY);
+
+	std::cout << "Wrote " << nWritten2 << " binary characters to decrypted file " << pOutFile << std::endl;
+
+	return nWritten == nWritten2;
+#endif
 	return true;
 }

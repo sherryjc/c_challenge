@@ -340,7 +340,8 @@ bool Challenges::Set1Ch7y()
 
 	Aes aes(128);
 	aes.SetKey(bKey, key.length());
-	aes.Read(pInFile, FileType::ASCII);
+	size_t nRead = aes.Read(pInFile, FileType::ASCII);
+	std::cout << "Read " << nRead << " ASCII characters from plaintext file " << pEncFile << std::endl;
 	aes.Encrypt();
 	size_t nWritten = aes.Write(pEncFile, FileType::BINARY);
 

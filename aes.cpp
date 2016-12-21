@@ -74,9 +74,7 @@ Aes::Aes(size_t nBlockSizeBits) :
 	m_nKeySize(0),
 	m_nExpandedKeySize(0),
 	m_nInputSize(0),
-	m_nInputSizePadded(0),
 	m_nOutputSize(0),
-	m_nOutputSizePadded(0),
 	m_pInput(nullptr),
 	m_pOutput(nullptr),
 	m_pKey(nullptr),
@@ -122,13 +120,17 @@ size_t Aes::ReadBin(const char* pFilename)
 	if (!pBin || !pBin.get() || binCnt == 0) {
 		return 0;
 	}
-	// TODO: Handle padding if last block is not full
 	m_pInput = std::move(pBin);
-	m_nInputSize = binCnt;
-	m_nInputSizePadded = (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize;
+	m_nInputSize = binCnt % m_nBlockSize ? (binCnt / m_nBlockSize + 1) * m_nBlockSize : binCnt;
+
+	// Add pad bytes if the last block was not full
+	byte* pInp = m_pInput.get();
+	for (size_t i = binCnt; i < m_nInputSize; ++i) {
+		pInp[i] = kPadByteVal;
+	}
 
 	// Output size is same as binary input - allocate the buffer now
-	InitOutput(m_nInputSize, m_nInputSizePadded);
+	InitOutput(m_nInputSize);
 	return m_nInputSize;
 }
 
@@ -139,13 +141,23 @@ size_t Aes::ReadAscii(const char* pFilename)
 	if (!pTxt || !pTxt.get() || charCnt == 0) {
 		return 0;
 	}
-	size_t binCnt = 0;
-	m_pInput = std::move(crypto_utils::txtANSIToBin(pTxt.get(), charCnt, binCnt));
+
+	// Convert from characters to bytes and add padding if necessary
+	size_t binCnt = charCnt % m_nBlockSize ? (charCnt / m_nBlockSize + 1) * m_nBlockSize : charCnt;
+	char* pTxtIn = pTxt.get();
+	auto pInBuf = upByteArr(new byte[binCnt]);
+	for (size_t i = 0; i < charCnt; i++) {
+		pInBuf[i] = static_cast<byte>(pTxtIn[i]);
+	}
+	for (size_t i = charCnt; i < binCnt; ++i) {
+		pInBuf[i] = static_cast<byte>(kPadCharVal);
+	}
+
+	m_pInput = std::move(pInBuf);
 	m_nInputSize = binCnt;
-	m_nInputSizePadded = (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize;
 
 	// Output size is same as binary input - allocate the buffer now
-	InitOutput(m_nInputSize, m_nInputSizePadded);
+	InitOutput(m_nInputSize);
 	return m_nInputSize;
 }
 
@@ -163,7 +175,7 @@ size_t Aes::ReadBase64(const char* pFilename)
 
 	// Output size is same as binary input - allocate the buffer now
 	// Padding is already accounted for in the Base64 format
-	InitOutput(m_nInputSize, m_nInputSize);
+	InitOutput(m_nInputSize);
 	return m_nInputSize;
 }
 
@@ -192,12 +204,11 @@ size_t Aes::WriteBin(const char* pFilename)
 	return io_utils::writeBinFile(pFilename, m_pOutput.get(), m_nOutputSize);
 }
 
-void Aes::InitOutput(size_t sz, size_t szPadded)
+void Aes::InitOutput(size_t sz)
 {
-	m_pOutput.reset(new byte[szPadded]);
-	SecureZeroMemory(m_pOutput.get(), szPadded);
+	m_pOutput.reset(new byte[sz]);
+	SecureZeroMemory(m_pOutput.get(), sz);
 	m_nOutputSize = sz;
-	m_nOutputSizePadded = szPadded;
 }
 
 
@@ -488,10 +499,10 @@ void Aes::EncryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 	}
 
 	ShiftRowLeft(pState);
-//	if (!bFinal) {
-//		MixColumn(pState);
-//	}
-//	AddRoundKey(pState, pRoundKey);
+	if (!bFinal) {
+		MixColumn(pState);
+	}
+	AddRoundKey(pState, pRoundKey);
 }
 
 void Aes::DecryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
@@ -502,10 +513,10 @@ void Aes::DecryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 	// Shift rows
 	// Substitution
 
-//	AddRoundKey(pState, pRoundKey);
-//	if (!bFinal) {
-//		MixColumnInvert(pState);
-//	}
+	AddRoundKey(pState, pRoundKey);
+	if (!bFinal) {
+		MixColumnInvert(pState);
+	}
 	ShiftRowRight(pState);
 
 	for (size_t i = 0; i < m_nBlockSize; ++i) {
@@ -548,10 +559,10 @@ void Aes::DecryptBlock(byte* pOutput, const byte* pInput)
 	// Decrypt the final encryption round 
 	DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*m_nRounds, true);
 
-	// Decrypt n encrypted rounds
-	for (size_t i = 0; i < m_nRounds; ++i)
+	// Decrypt n encrypted rounds - note direction of loop is the reverse of what was used to encrypt
+	for (size_t i = m_nRounds; i > 0; --i)
 	{
-		DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*i);
+		DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*(i-1));
 	}
 
 	AddRoundKey(pOutput, pExpandedKey);

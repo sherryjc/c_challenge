@@ -43,7 +43,6 @@ namespace crypto_utils {
 	upCharArr binToBase64(const byte* pBuf, size_t inCnt, size_t& outCnt);
 	upByteArr base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt);
 	upCharArr binToTxtANSI(const byte* pBuf, size_t inCnt, size_t& outCnt);
-	upByteArr txtANSIToBin(const char* pBuf, size_t inCnt, size_t& outCnt);
 
 	bool convHexToBase64(const char* pHexFile, const char* pBase64File);
 	bool convBase64ToHex(const char* pBase64File, const char* pHexFile);

@@ -23,7 +23,7 @@ private:
 
 	size_t WriteBin(const char* pFilename);
 
-	void InitOutput(size_t sz, size_t szPadded);
+	void InitOutput(size_t sz);
 
 	byte GetSBoxValue(byte num);
 	byte GetSBoxInvert(byte num);
@@ -45,6 +45,9 @@ private:
 	static void MxVec4(byte* v);
 	static void MIxVec4(byte* v);
 
+	static const byte kPadByteVal = 0x0;      // Pad value when reading binary
+	static const char kPadCharVal = 0x20;     // Pad value when reading ascii text
+
 	size_t m_nBlockSizeBits;
 	size_t m_nBlockSize;
 	size_t m_nRounds;
@@ -52,9 +55,7 @@ private:
 	size_t m_nKeySize;
 	size_t m_nExpandedKeySize;
 	size_t m_nInputSize;
-	size_t m_nInputSizePadded;
 	size_t m_nOutputSize;
-	size_t m_nOutputSizePadded;
 
 	std::unique_ptr<byte[]>	m_pInput;
 	std::unique_ptr<byte[]>	m_pOutput;

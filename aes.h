@@ -23,7 +23,7 @@ private:
 
 	size_t WriteBin(const char* pFilename);
 
-	void InitOutput(size_t sz);
+	void InitOutput(size_t sz, size_t szPadded);
 
 	byte GetSBoxValue(byte num);
 	byte GetSBoxInvert(byte num);

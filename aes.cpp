@@ -128,7 +128,7 @@ size_t Aes::ReadBin(const char* pFilename)
 	m_nInputSizePadded = (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize;
 
 	// Output size is same as binary input - allocate the buffer now
-	InitOutput(m_nInputSizePadded);
+	InitOutput(m_nInputSize, m_nInputSizePadded);
 	return m_nInputSize;
 }
 
@@ -145,7 +145,7 @@ size_t Aes::ReadAscii(const char* pFilename)
 	m_nInputSizePadded = (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize;
 
 	// Output size is same as binary input - allocate the buffer now
-	InitOutput(m_nInputSizePadded);
+	InitOutput(m_nInputSize, m_nInputSizePadded);
 	return m_nInputSize;
 }
 
@@ -162,7 +162,8 @@ size_t Aes::ReadBase64(const char* pFilename)
 	m_nInputSize = binCnt;
 
 	// Output size is same as binary input - allocate the buffer now
-	InitOutput(m_nInputSize);
+	// Padding is already accounted for in the Base64 format
+	InitOutput(m_nInputSize, m_nInputSize);
 	return m_nInputSize;
 }
 
@@ -191,12 +192,12 @@ size_t Aes::WriteBin(const char* pFilename)
 	return io_utils::writeBinFile(pFilename, m_pOutput.get(), m_nOutputSize);
 }
 
-void Aes::InitOutput(size_t sz)
+void Aes::InitOutput(size_t sz, size_t szPadded)
 {
-	// sz should already be rounded up to nearest block size
-	m_pOutput.reset(new byte[sz]);
-	SecureZeroMemory(m_pOutput.get(), sz);
-	m_nOutputSizePadded = sz;
+	m_pOutput.reset(new byte[szPadded]);
+	SecureZeroMemory(m_pOutput.get(), szPadded);
+	m_nOutputSize = sz;
+	m_nOutputSizePadded = szPadded;
 }
 
 

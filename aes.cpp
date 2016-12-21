@@ -74,7 +74,9 @@ Aes::Aes(size_t nBlockSizeBits) :
 	m_nKeySize(0),
 	m_nExpandedKeySize(0),
 	m_nInputSize(0),
+	m_nInputSizePadded(0),
 	m_nOutputSize(0),
+	m_nOutputSizePadded(0),
 	m_pInput(nullptr),
 	m_pOutput(nullptr),
 	m_pKey(nullptr),
@@ -123,9 +125,10 @@ size_t Aes::ReadBin(const char* pFilename)
 	// TODO: Handle padding if last block is not full
 	m_pInput = std::move(pBin);
 	m_nInputSize = binCnt;
+	m_nInputSizePadded = (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize;
 
 	// Output size is same as binary input - allocate the buffer now
-	InitOutput(m_nInputSize);
+	InitOutput(m_nInputSizePadded);
 	return m_nInputSize;
 }
 
@@ -139,10 +142,10 @@ size_t Aes::ReadAscii(const char* pFilename)
 	size_t binCnt = 0;
 	m_pInput = std::move(crypto_utils::txtANSIToBin(pTxt.get(), charCnt, binCnt));
 	m_nInputSize = binCnt;
-	// TODO: Handle padding if last block is not full
+	m_nInputSizePadded = (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize;
 
 	// Output size is same as binary input - allocate the buffer now
-	InitOutput(m_nInputSize);
+	InitOutput(m_nInputSizePadded);
 	return m_nInputSize;
 }
 
@@ -190,11 +193,10 @@ size_t Aes::WriteBin(const char* pFilename)
 
 void Aes::InitOutput(size_t sz)
 {
-	// Round output buffer up to nearest block size
-	size_t szAlloc = (sz / m_nBlockSize + 1) * m_nBlockSize;
-	m_pOutput.reset(new byte[szAlloc]);
-	SecureZeroMemory(m_pOutput.get(), szAlloc);
-	m_nOutputSize = sz;
+	// sz should already be rounded up to nearest block size
+	m_pOutput.reset(new byte[sz]);
+	SecureZeroMemory(m_pOutput.get(), sz);
+	m_nOutputSizePadded = sz;
 }
 
 
@@ -362,7 +364,17 @@ AddRoundKey
 
 void Aes::ShiftRowLeft(byte* pState)
 {
-	// The 0th row is shifted 0 positions to the left.
+	// Note the storage convention:
+	// From http://cboard.cprogramming.com/c-programming/87805-[tutorial]-implementing-advanced-encryption-standard.html
+	// It is very important to know that the cipher input and key bytes are mapped onto the the state bytes in the order: 
+	// a0,0, a1,0, a2,0, a3,0, a0,1, a1,1, a2,1, a3, 1, a4,1 ..., 
+	// 
+	// 00 01 02 03   i.e. Row0 = elements 0,4,8,12
+	// 10 11 12 13        Row1 = elements 1,5,9,13
+	// 20 21 22 23        Row2 = elements 2,6,10,14
+	// 30 31 32 33        Row3 = elements 3,7,11,15
+
+	// The 0th row is shifted 0 positions to the left (i.e. remains unchanged)
 	// The 1st row is shifted 1 positions to the left.
 	// The 2nd row is shifted 2 positions to the left.
 	// The 3rd row is shifted 3 positions to the left.
@@ -378,7 +390,7 @@ void Aes::ShiftRowLeft(byte* pState)
 
 void Aes::ShiftRowRight(byte* pState)
 {
-	// The 0th row is shifted 0 positions to the right.
+	// The 0th row is shifted 0 positions to the right (i.e. remains unchanged)
 	// The 1st row is shifted 1 positions to the right.
 	// The 2nd row is shifted 2 positions to the right.
 	// The 3rd row is shifted 3 positions to the right.
@@ -473,29 +485,28 @@ void Aes::EncryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 	for (size_t i = 0; i < m_nBlockSize; ++i) {
 		pState[i] = GetSBoxValue(pState[i]);
 	}
-#if 0
+
 	ShiftRowLeft(pState);
-	if (!bFinal) {
-		MixColumn(pState);
-	}
-	AddRoundKey(pState, pRoundKey);
-#endif
+//	if (!bFinal) {
+//		MixColumn(pState);
+//	}
+//	AddRoundKey(pState, pRoundKey);
 }
 
 void Aes::DecryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 {
+	// The order is the reverse of EncryptRound:
 	// Add Round Key
 	// Mix columns
 	// Shift rows
 	// Substitution
 
-#if 0
-	AddRoundKey(pState, pRoundKey);
-	if (!bFinal) {
-		MixColumnInvert(pState);
-	}
+//	AddRoundKey(pState, pRoundKey);
+//	if (!bFinal) {
+//		MixColumnInvert(pState);
+//	}
 	ShiftRowRight(pState);
-#endif
+
 	for (size_t i = 0; i < m_nBlockSize; ++i) {
 		pState[i] = GetSBoxInvert(pState[i]);
 	}
@@ -510,15 +521,15 @@ void Aes::EncryptBlock(byte* pOutput, const byte* pInput)
 		pOutput[i] = pInput[i];
 	}
 
-
 	AddRoundKey(pOutput, pExpandedKey);
 
+	// Do n rounds of encryption
 	for (size_t i = 0; i < m_nRounds; ++i)
 	{
 		EncryptRound(pOutput, pExpandedKey + m_nBlockColumns*i);
 	}
 
-	// Do the final round
+	// The final encryption round round
 	EncryptRound(pOutput, pExpandedKey + m_nBlockColumns*m_nRounds, true);
 }
 
@@ -526,20 +537,23 @@ void Aes::DecryptBlock(byte* pOutput, const byte* pInput)
 {
 	const byte* pExpandedKey = m_pExpandedKey.get();
 
+
 	// Initialize the output text ("state") to the input text
 	for (size_t i = 0; i < m_nBlockSize; ++i)
 	{
 		pOutput[i] = pInput[i];
 	}
 
-	AddRoundKey(pOutput, pExpandedKey);
+	// Decrypt the final encryption round 
+	DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*m_nRounds, true);
 
+	// Decrypt n encrypted rounds
 	for (size_t i = 0; i < m_nRounds; ++i)
 	{
 		DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*i);
 	}
 
-	// Do the final round
-	DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*m_nRounds, true);
+	AddRoundKey(pOutput, pExpandedKey);
+
 }
 

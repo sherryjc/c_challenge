@@ -52,7 +52,9 @@ private:
 	size_t m_nKeySize;
 	size_t m_nExpandedKeySize;
 	size_t m_nInputSize;
+	size_t m_nInputSizePadded;
 	size_t m_nOutputSize;
+	size_t m_nOutputSizePadded;
 
 	std::unique_ptr<byte[]>	m_pInput;
 	std::unique_ptr<byte[]>	m_pOutput;

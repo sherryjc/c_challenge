@@ -426,7 +426,7 @@ byte Aes::Mult(byte a, byte b)
 			p ^= a;
 		}
 		bool bHighASet = (a & 0x80) != 0x0;
-		a <<= a;
+		a <<= 1;
 		if (bHighASet) {
 			a ^= 0x1b;
 		}
@@ -457,6 +457,7 @@ void Aes::MxVec4(byte* v)
 void Aes::MIxVec4(byte* v)
 {
 	/* MI = Inverse operation of MxVec4
+	From https://en.wikipedia.org/wiki/Rijndael_mix_columns
 	14 11 13  9
 	 9 14 11 13
 	13  9 14 11

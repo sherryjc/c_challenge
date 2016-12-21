@@ -331,6 +331,7 @@ bool Challenges::Set1Ch7x()
 
 bool Challenges::Set1Ch7y()
 {
+	// Tests a simple round-trip encryption-decryption of text of our choosing
 	static const char* pInFile = "./data/set1/challenge7/test_input.txt";
 	static const char* pEncFile = "./data/set1/challenge7/test_input_enc.bin";
 	static const char* pOutFile = "./data/set1/challenge7/test_input_dec.txt";

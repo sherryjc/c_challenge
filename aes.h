@@ -34,8 +34,10 @@ private:
 	void AddRoundKey(byte* pState, const byte* pRoundKey);
 	void ShiftRowLeft(byte* pState);
 	void ShiftRowRight(byte* pState);
+
 	void MixColumn(byte* pState);
 	void MixColumnInvert(byte* pState);
+
 	void EncryptRound(byte* pState, const byte* pRoundKey, bool bFinal = false);
 	void DecryptRound(byte* pState, const byte* pRoundKey, bool bFinal = false);
 	void EncryptBlock(byte* pOutput, const byte* pInput);

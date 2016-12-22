@@ -384,17 +384,17 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 	byte i3 = _b64ToIdx(pB64Buf[ib++]);
 
 	pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
-	if (i2 == 0xff) {
-		pOutBuf[outCnt++] = (i1 << 4) & 0x3;
-	}
-	else if (i3 == 0xff) {
-		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
-		pOutBuf[outCnt++] = i2 << 6;
-	}
-	else {
-		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
-		pOutBuf[outCnt++] = i2 << 6 | i3;
-	}
+ 	if (i2 == 0xff) {
+ 		//pOutBuf[outCnt++] = (i1 << 4) & 0x3;
+ 	}
+ 	else if (i3 == 0xff) {
+ 		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
+ 		//pOutBuf[outCnt++] = i2 << 6;
+ 	}
+ 	else {
+ 		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
+ 		pOutBuf[outCnt++] = i2 << 6 | i3;
+ 	}
 
 	return pRetBuf;
 }

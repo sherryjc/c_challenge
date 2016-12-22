@@ -20,7 +20,7 @@ using upCharArr = std::unique_ptr<char[]>;
 
 namespace io_utils {
 
-	upByteArr readBinFile(const char* pFileName, size_t& outCnt);
+	upByteArr readBinFile(const char* pFileName, size_t& outCnt, size_t blockSize=0, byte padByte=0);
 	upCharArr readTextFile(const char* pFileName, size_t& outCnt);
 	upCharArr readTextFileStripCRLF(const char* pFileName, size_t& outCnt);
 	size_t writeBinFile(const char* pFileName, const byte* pBuffer, size_t cch);

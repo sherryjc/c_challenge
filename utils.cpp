@@ -37,7 +37,7 @@ void io_utils::logError(const char* str)
 	fprintf(stderr, "Error: %s\n", str);
 }
 
-upByteArr io_utils::readBinFile(const char* pFileName, size_t& outSz)
+upByteArr io_utils::readBinFile(const char* pFileName, size_t& outSz, size_t blockSize, byte padByte)
 {
 	outSz = 0;
 	FILE* pFile = fopen(pFileName, "rb");
@@ -51,20 +51,30 @@ upByteArr io_utils::readBinFile(const char* pFileName, size_t& outSz)
 	long lSize = ftell(pFile);
 	rewind(pFile);
 
-	// allocate memory to contain the whole file:
-	upByteArr pBuffer = upByteArr(new byte[lSize]);
+	// If a block size was provided, round up the size of the buffer allocated to the nearest multiple of that size
+	size_t paddedCnt = (blockSize > 0 && lSize % blockSize) ? (lSize / blockSize + 1) * blockSize : lSize;
+
+	// allocate memory to contain the whole file (plus padding bytes if requested)
+	auto pBuffer = upByteArr(new byte[paddedCnt]);
 	if (nullptr == pBuffer) { 
 		logError("new"); 
 		fclose(pFile);
 		return nullptr; 
 	}
 
+	auto destBuf = pBuffer.get();
 	// copy the file into the buffer:
-	size_t itemsRead = fread(pBuffer.get(), 1, lSize, pFile);
+	size_t itemsRead = fread(destBuf, 1, lSize, pFile);
 	if (itemsRead != lSize) { 
 		logError("fread"); 
 	}
-	outSz = itemsRead;
+
+	// Add padding bytes if necessary
+	for (size_t i = lSize; i < paddedCnt; ++i) {
+		destBuf[i] = padByte;
+	}
+
+	outSz = paddedCnt;
 	fclose(pFile);
 	return pBuffer;
 }
@@ -92,7 +102,7 @@ upCharArr io_utils::readTextFile(const char* pFileName, size_t& outCnt)
 
 	// copy the file into the buffer:
 	size_t itemsRead = fread(pBuffer.get(), sizeof(char), lSize, pFile);
-	if (itemsRead == 0) {   // itemsRead might not == lSize due to \n\r issues
+	if (itemsRead == 0) {   
 		logError("fread");
 	}
 	pBuffer[itemsRead] = '\0';
@@ -144,6 +154,7 @@ upCharArr io_utils::stripCRLF(const char* pCharBuf, size_t inCnt, size_t& stripp
 		}
 		pSrc++;
 	}
+	pDest[strippedCnt] = '\0';
 	return pStrippedBuffer;
 }
 
@@ -352,7 +363,8 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 	}
 
 	size_t groups = inCnt / 4;
-	std::unique_ptr<byte[]>pOutBuf = std::unique_ptr<byte[]>(new byte[groups*3]);
+	std::unique_ptr<byte[]>pRetBuf = std::unique_ptr<byte[]>(new byte[groups*3]);
+	auto pOutBuf = pRetBuf.get();
 	int ib = 0;
 	outCnt = 0;
 	for (size_t i = 0; i < groups - 1; i++) {
@@ -384,7 +396,7 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 		pOutBuf[outCnt++] = i2 << 6 | i3;
 	}
 
-	return pOutBuf;
+	return pRetBuf;
 }
 
 bool crypto_utils::convHexToBase64(const char* pHexFile, const char* pBase64File)

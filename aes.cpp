@@ -90,7 +90,7 @@ Aes::Aes(size_t nBlockSizeBits) :
 
 Aes::~Aes()
 {
-	m_pOutput.reset(nullptr);
+	// m_pOutput.reset(nullptr);
 }
 
 size_t Aes::Read(const char* pFilename, FileType fType)
@@ -116,18 +116,13 @@ size_t Aes::Read(const char* pFilename, FileType fType)
 size_t Aes::ReadBin(const char* pFilename)
 {
 	size_t binCnt = 0;
-	std::unique_ptr<byte[]> pBin = io_utils::readBinFile(pFilename, binCnt);
+	// Read the binary file, adding padding bytes to round to a multiple of the block size 
+	std::unique_ptr<byte[]> pBin = io_utils::readBinFile(pFilename, binCnt, m_nBlockSize, kPadByteVal);
 	if (!pBin || !pBin.get() || binCnt == 0) {
 		return 0;
 	}
+	m_nInputSize = binCnt;
 	m_pInput = std::move(pBin);
-	m_nInputSize = binCnt % m_nBlockSize ? (binCnt / m_nBlockSize + 1) * m_nBlockSize : binCnt;
-
-	// Add pad bytes if the last block was not full
-	byte* pInp = m_pInput.get();
-	for (size_t i = binCnt; i < m_nInputSize; ++i) {
-		pInp[i] = kPadByteVal;
-	}
 
 	// Output size is same as binary input - allocate the buffer now
 	InitOutput(m_nInputSize);
@@ -206,7 +201,7 @@ size_t Aes::WriteBin(const char* pFilename)
 
 void Aes::InitOutput(size_t sz)
 {
-	m_pOutput.reset(new byte[sz]);
+	m_pOutput.reset(new byte[sz+32]);    // TODO - a lot of extra padding necessary to avoid heap crash on deallocate - why?
 	SecureZeroMemory(m_pOutput.get(), sz);
 	m_nOutputSize = sz;
 }

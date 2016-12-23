@@ -210,8 +210,8 @@ bool Challenges::Set1Ch6()
 		std::cout << "Length: " << entry.first << "  Rating: " << entry.second << std::endl;
 	}
 
-	unsigned startTryKL = 2;
-	unsigned endTryKL = 40;
+	unsigned startTryKL = 29; // 2;
+	unsigned endTryKL = 29;  // 40;
 	for (unsigned keyLength = startTryKL; keyLength <= endTryKL; keyLength++) {
 		std::unique_ptr<byte[]> spWholeKey = std::unique_ptr<byte[]>(new byte[keyLength]);
 		byte* pKey = spWholeKey.get();
@@ -365,10 +365,11 @@ bool Challenges::Set1Ch7z()
 	// Write out binary
 	// Read binary and decrypt it
 
-	static const char* pInFile = "./data/set1/challenge7/AES_shortTest2_B64.txt";
-	static const char* pEncBinFile = "./data/set1/challenge7/AES_shortTest2.bin";
-	static const char* pDecBinFile = "./data/set1/challenge7/AES_shortTestDec2.bin";
+	//static const char* pInFile = "./data/set1/challenge7/AES_shortTest2_B64.txt";
+	static const char* pEncBinFile = "./data/set1/challenge7/Simple1.bin";
+	static const char* pDecBinFile = "./data/set1/challenge7/Simple1Dec.bin";
 
+#if 0
 	size_t base64Cnt = 0;
 	std::unique_ptr<char[]>pBase64Buf = io_utils::readTextFileStripCRLF(pInFile, base64Cnt);
 	if (!pBase64Buf || !pBase64Buf.get() || base64Cnt == 0) {
@@ -382,6 +383,7 @@ bool Challenges::Set1Ch7z()
 	size_t nWritten = io_utils::writeBinFile(pEncBinFile, pBinBuf, binCnt);
 	bool bRc = (nWritten == binCnt);
 	std::cout << "Wrote " << nWritten << " bytes to " << pEncBinFile << std::endl;
+#endif 
 
 	static const byte bKey[] = "YELLOW SUBMARINE";
 	std::string key("YELLOW SUBMARINE");
@@ -393,5 +395,5 @@ bool Challenges::Set1Ch7z()
 	size_t nWritten2 = aes2.Write(pDecBinFile, FileType::BINARY);
 
 	std::cout << "Wrote " << nWritten2 << " binary characters to decrypted file " << pDecBinFile << std::endl;
-	return bRc;
+	return true;
 }

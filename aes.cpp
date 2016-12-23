@@ -165,7 +165,7 @@ size_t Aes::ReadBase64(const char* pFilename)
 	}
 
 	size_t binCnt = 0;
-	m_pInput = std::move(crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt));
+	m_pInput = std::move(crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt, m_nBlockSize, kPadByteVal));
 	m_nInputSize = binCnt;
 
 	// Output size is same as binary input - allocate the buffer now

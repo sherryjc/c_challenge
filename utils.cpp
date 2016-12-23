@@ -352,7 +352,7 @@ upCharArr crypto_utils::binToBase64(const byte* pBuf, size_t inCnt, size_t& outC
 	return pOutBuf;
 }
 
-std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt)
+std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt, size_t blockSize, byte padByte)
 {
 	// Assumption: CR-LF have already been stripped from input
 
@@ -363,39 +363,52 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 	}
 
 	size_t groups = inCnt / 4;
-	std::unique_ptr<byte[]>pRetBuf = std::unique_ptr<byte[]>(new byte[groups*3]);
+	size_t dataSize = groups * 3;
+	// If a block size was provided, round up the size of the buffer allocated to the nearest multiple of that size
+	// Note this "padding" is different from the Base64 padding. This size may be pessimistic; we recompute
+	// how many actual padding characters we need based on the actual data characters encountered.
+	size_t paddedSize = (blockSize > 0 && dataSize % blockSize) ? (dataSize / blockSize + 1) * blockSize : dataSize;
+
+	std::unique_ptr<byte[]>pRetBuf = std::unique_ptr<byte[]>(new byte[paddedSize]);
 	auto pOutBuf = pRetBuf.get();
 	int ib = 0;
-	outCnt = 0;
+	size_t oCnt = 0;
 	for (size_t i = 0; i < groups - 1; i++) {
 		byte i0 = _b64ToIdx(pB64Buf[ib++]);
 		byte i1 = _b64ToIdx(pB64Buf[ib++]);
 		byte i2 = _b64ToIdx(pB64Buf[ib++]);
 		byte i3 = _b64ToIdx(pB64Buf[ib++]);
 
-		pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
-		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
-		pOutBuf[outCnt++] = i2 << 6 | i3;
+		pOutBuf[oCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
+		pOutBuf[oCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
+		pOutBuf[oCnt++] = i2 << 6 | i3;
 	}
-	// Handle last group separately - extra checking for padding chars
+	// Handle last group separately - extra checking for Base64 padding chars
 	byte i0 = _b64ToIdx(pB64Buf[ib++]);
 	byte i1 = _b64ToIdx(pB64Buf[ib++]);
 	byte i2 = _b64ToIdx(pB64Buf[ib++]);
 	byte i3 = _b64ToIdx(pB64Buf[ib++]);
 
-	pOutBuf[outCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
+	pOutBuf[oCnt++] = i0 << 2 | ((i1 >> 4) & 0x3);
  	if (i2 == 0xff) {
- 		//pOutBuf[outCnt++] = (i1 << 4) & 0x3;
+ 		//pOutBuf[oCnt++] = (i1 << 4) & 0x3;
  	}
  	else if (i3 == 0xff) {
- 		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
- 		//pOutBuf[outCnt++] = i2 << 6;
+ 		pOutBuf[oCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
+ 		//pOutBuf[oCnt++] = i2 << 6;
  	}
  	else {
- 		pOutBuf[outCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
- 		pOutBuf[outCnt++] = i2 << 6 | i3;
+ 		pOutBuf[oCnt++] = i1 << 4 | ((i2 >> 2) & 0xf);
+ 		pOutBuf[oCnt++] = i2 << 6 | i3;
  	}
 
+	// Now fill in block padding if so requested
+	size_t adjustedCnt = ((blockSize > 0) && oCnt % blockSize) ? (outCnt / blockSize + 1) * blockSize : oCnt;
+
+	while (oCnt < adjustedCnt) {
+		pOutBuf[oCnt++] = padByte;
+	}
+	outCnt = oCnt;
 	return pRetBuf;
 }
 

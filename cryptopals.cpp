@@ -8,14 +8,37 @@ int main(int argc, char* argv[])
 {
 	// printf("Called with %d arguments", argc);
 	bool bRc = true;
-
-	//bRc &= Challenges::Set1Ch1();
-	//bRc &= Challenges::Set1Ch2();
-	//bRc &= Challenges::Set1Ch3();
-	//bRc &= Challenges::Set1Ch4();
-	//bRc &= Challenges::Set1Ch5();
-	//bRc &= Challenges::Set1Ch6();
-	bRc &= Challenges::Set1Ch7y();
+	int testToRun = 0;
+	if (argc > 1) {
+		testToRun = atoi(argv[1]);
+	}
+	switch (testToRun) {
+	case 1:
+		bRc &= Challenges::Set1Ch1();
+		break;
+	case 2:
+		bRc &= Challenges::Set1Ch2();
+		break;
+	case 3:
+		bRc &= Challenges::Set1Ch3();
+		break;
+	case 4:
+		bRc &= Challenges::Set1Ch4();
+		break;
+	case 5:
+		bRc &= Challenges::Set1Ch5();
+		break;
+	case 6:
+		bRc &= Challenges::Set1Ch6();
+		break;
+	case 7:
+		bRc &= Challenges::Set1Ch7();
+		break;
+	case 0:
+	default:
+		bRc &= Challenges::Set1Ch7y();
+		break;
+	}
 
 	return bRc == true ? 0 : 1;
 }

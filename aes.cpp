@@ -503,25 +503,29 @@ void Aes::EncryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 
 void Aes::DecryptRound(byte* pState, const byte* pRoundKey, bool bFinal)
 {
-	// The order is the reverse of EncryptRound:
+	// The order is different from (but not the exact reverse of) EncryptRound:
+	// Inv Shift Rows
+	// Inv Substitution
 	// Add Round Key
-	// Mix columns
-	// Shift rows
-	// Substitution
+	// Inv Mix Columns (unless bFinal)
 
-	AddRoundKey(pState, pRoundKey);
-	if (!bFinal) {
-		MixColumnInvert(pState);
-	}
 	ShiftRowRight(pState);
 
 	for (size_t i = 0; i < m_nBlockSize; ++i) {
 		pState[i] = GetSBoxInvert(pState[i]);
 	}
+	AddRoundKey(pState, pRoundKey);
+	
+	if (!bFinal) {
+		MixColumnInvert(pState);
+	}
+
 }
 
 void Aes::EncryptBlock(byte* pOutput, const byte* pInput)
 {
+	static const size_t nByteIncr = m_nBlockColumns * 4;  // columns * 4 bytes/column
+
 	const byte* pExpandedKey = m_pExpandedKey.get();
 	// Initialize the output text ("state") to the input text
 	for (size_t i = 0; i < m_nBlockSize; ++i)
@@ -530,21 +534,23 @@ void Aes::EncryptBlock(byte* pOutput, const byte* pInput)
 	}
 
 	AddRoundKey(pOutput, pExpandedKey);
-
+	pExpandedKey += nByteIncr;
 	// Do n rounds of encryption
-	for (size_t i = 0; i < m_nRounds; ++i)
+	for (size_t i = 1; i < m_nRounds; ++i)
 	{
-		EncryptRound(pOutput, pExpandedKey + m_nBlockColumns*i);
+		EncryptRound(pOutput, pExpandedKey);
+		pExpandedKey += nByteIncr;
 	}
 
 	// The final encryption round round
-	EncryptRound(pOutput, pExpandedKey + m_nBlockColumns*m_nRounds, true);
+	EncryptRound(pOutput, pExpandedKey, true);
 }
 
 void Aes::DecryptBlock(byte* pOutput, const byte* pInput)
 {
+	static const size_t nByteIncr = m_nBlockColumns * 4;  // columns * 4 bytes/column
 	const byte* pExpandedKey = m_pExpandedKey.get();
-
+	const byte* pCurrKey = pExpandedKey + nByteIncr*m_nRounds;
 
 	// Initialize the output text ("state") to the input text
 	for (size_t i = 0; i < m_nBlockSize; ++i)
@@ -552,16 +558,17 @@ void Aes::DecryptBlock(byte* pOutput, const byte* pInput)
 		pOutput[i] = pInput[i];
 	}
 
-	// Decrypt the final encryption round 
-	DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*m_nRounds, true);
-
-	// Decrypt n encrypted rounds - note direction of loop is the reverse of what was used to encrypt
-	for (size_t i = m_nRounds; i > 0; --i)
+	AddRoundKey(pOutput, pCurrKey);	
+	pCurrKey -= nByteIncr;
+	
+	// Decrypt n encrypted rounds - note we're using the key from back to front
+	for (size_t i = 1; i < m_nRounds; ++i)
 	{
-		DecryptRound(pOutput, pExpandedKey + m_nBlockColumns*(i-1));
+		DecryptRound(pOutput, pCurrKey);
+		pCurrKey -= nByteIncr;
 	}
 
-	AddRoundKey(pOutput, pExpandedKey);
+	DecryptRound(pOutput, pCurrKey, true);
 
 }
 

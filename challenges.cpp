@@ -397,3 +397,32 @@ bool Challenges::Set1Ch7z()
 	std::cout << "Wrote " << nWritten2 << " binary characters to decrypted file " << pDecBinFile << std::endl;
 	return true;
 }
+
+bool Challenges::Set1Ch8()
+{
+	static const char* pInFile = "./data/set1/challenge8/input_hex.txt";
+
+	size_t hexCharCnt = 0;
+	std::unique_ptr<char[]> pHex = io_utils::readTextFile(pInFile, hexCharCnt);
+	if (!pHex || !pHex.get() || hexCharCnt == 0) {
+		return false;
+	}
+	std::cout << "Read " << hexCharCnt << " ASCII characters from hex file " << pInFile << std::endl;
+	std::vector<std::string> vec;
+	io_utils::separateStrings(vec, pHex.get(), hexCharCnt);
+
+	std::cout << "Got " << vec.size() << " strings\n";
+	for (auto str : vec) {
+		std::cout << "[[ " << str << " ]]" << std::endl;
+	}
+
+	// Just convert the first string for now
+	if (vec.size() > 0) {
+		size_t binCnt = 0;
+		std::unique_ptr<byte[]> pBin = crypto_utils::hexToBin(vec[0].c_str(), vec[0].length(), binCnt);
+
+		std::cout << "Converted to " << binCnt << " binary bytes " << std::endl;
+	}
+
+	return true;
+}

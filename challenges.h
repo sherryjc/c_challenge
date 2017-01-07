@@ -13,4 +13,5 @@ namespace Challenges {
 	bool Set1Ch7x();
 	bool Set1Ch7y();
 	bool Set1Ch7z();
+	bool Set1Ch8();
 }

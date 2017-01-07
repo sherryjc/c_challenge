@@ -27,6 +27,7 @@ namespace io_utils {
 	size_t writeTextFile(const char* pFileName, const char* pBuffer, size_t cch, bool bRaw=false);
 
 	upCharArr stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt);
+	void separateStrings(std::vector<std::string>&vec, const char* pTxt, size_t charCnt);
 
 	void logError(const char* str);
 }

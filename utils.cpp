@@ -158,6 +158,31 @@ upCharArr io_utils::stripCRLF(const char* pCharBuf, size_t inCnt, size_t& stripp
 	return pStrippedBuffer;
 }
 
+void io_utils::separateStrings(std::vector<std::string>&vec, const char* pTxt, size_t charCnt)
+{
+	size_t cnt = 0;
+	std::unique_ptr<char[]>pLocal = std::unique_ptr<char[]>(new char[charCnt + 1]);
+	char* pStartLocal = pLocal.get();
+	char* pDest = pStartLocal;
+	char* pCurrStr = pDest;
+	while (cnt < charCnt) {
+		if (*pTxt == '\0' || *pTxt == '\n' || *pTxt == '\r') {
+			*pDest = '\0';
+			std::string s = pCurrStr;
+			if (s.length() > 0) {
+				vec.emplace_back(s);
+			}
+			pDest = pStartLocal;
+			pCurrStr = pDest;
+		}
+		else {
+			*pDest++ = *pTxt;
+		}
+		pTxt++;
+		cnt++;
+	}
+}
+
 void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt)
 {
 	std::cout << std::endl << "DEBUG: ";

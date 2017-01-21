@@ -34,6 +34,9 @@ int main(int argc, char* argv[])
 	case 7:
 		bRc &= Challenges::Set1Ch7();
 		break;
+	case 8:
+		bRc &= Challenges::Set1Ch8();
+		break;
 	case 0:
 	default:
 		bRc &= Challenges::Set1Ch8();

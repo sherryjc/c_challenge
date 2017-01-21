@@ -410,19 +410,45 @@ bool Challenges::Set1Ch8()
 	std::cout << "Read " << hexCharCnt << " ASCII characters from hex file " << pInFile << std::endl;
 	std::vector<std::string> vec;
 	io_utils::separateStrings(vec, pHex.get(), hexCharCnt);
-
-	std::cout << "Got " << vec.size() << " strings\n";
+	std::vector<size_t> results_vec;
+	
+	std::cout << "Checking " << vec.size() << " strings\n";
+	
+	static const size_t kBlockSize = 32; // 16 bytes, represented by 32 hex characters 
+	size_t cnt = 0;
 	for (auto str : vec) {
-		std::cout << "[[ " << str << " ]]" << std::endl;
+		bool b = crypto_utils::checkDuplicateBlocks(str, kBlockSize);
+		if (b) {
+			results_vec.push_back(cnt);
+			std::cout << "String " << cnt << " has duplicate block\n";
+			std::cout << "[[ " << str << " ]]";
+		}
+		cnt++;
 	}
 
-	// Just convert the first string for now
-	if (vec.size() > 0) {
-		size_t binCnt = 0;
-		std::unique_ptr<byte[]> pBin = crypto_utils::hexToBin(vec[0].c_str(), vec[0].length(), binCnt);
-
-		std::cout << "Converted to " << binCnt << " binary bytes " << std::endl;
-	}
+	std::cout << "Found " << results_vec.size() << " strings with duplicated blocks";
 
 	return true;
+}
+
+bool Challenges::Set1Ch8a()
+{
+	// Chosen plaintext, examine encrypted bytes
+	static const char* pInFile = "./data/set1/challenge8/test_input.txt";
+	static const char* pEncFile = "./data/set1/challenge8/test_input_enc.hex";
+
+	static const byte bKey[] = "YELLOW SUBMARINE";
+	std::string key("YELLOW SUBMARINE");
+
+	Aes aes(128);
+	aes.SetKey(bKey, key.length());
+	size_t nRead = aes.Read(pInFile, FileType::ASCII);
+	std::cout << "Read " << nRead << " ASCII characters (plus possible padding) from plaintext file " << pEncFile << std::endl;
+	aes.Encrypt();
+
+	size_t nWritten = aes.Write(pEncFile, FileType::HEX);
+
+	std::cout << "Wrote " << nWritten << " hex characters to encrypted file " << pEncFile << std::endl;
+
+	return nWritten > 0;
 }

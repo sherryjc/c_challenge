@@ -1,4 +1,6 @@
 #pragma once
+#ifndef AES_H
+#define AES_H
 
 #include "utils.h"
 
@@ -22,6 +24,7 @@ private:
 	size_t ReadBase64(const char* pFilename);
 
 	size_t WriteBin(const char* pFilename);
+	size_t WriteHex(const char* pFilename);
 
 	void InitOutput(size_t sz);
 
@@ -42,14 +45,12 @@ private:
 	void DecryptRound(byte* pState, const byte* pRoundKey, bool bFinal = false);
 	void EncryptBlock(byte* pOutput, const byte* pInput);
 	void DecryptBlock(byte* pOutput, const byte* pInput);
-
+	
 	static byte Mult(byte a, byte b);
 	static void MxVec4(byte* v);
 	static void MIxVec4(byte* v);
-
-	static const byte kPadByteVal = 0x0;      // Pad value when reading binary
-	static const char kPadCharVal = 0x20;     // Pad value when reading ascii text
-
+	
+// data members
 	size_t m_nBlockSizeBits;
 	size_t m_nBlockSize;
 	size_t m_nRounds;
@@ -58,9 +59,11 @@ private:
 	size_t m_nExpandedKeySize;
 	size_t m_nInputSize;
 	size_t m_nOutputSize;
-
+	
 	std::unique_ptr<byte[]>	m_pInput;
 	std::unique_ptr<byte[]>	m_pOutput;
 	std::unique_ptr<byte[]>	m_pKey;
 	std::unique_ptr<byte[]>	m_pExpandedKey;
 };
+
+#endif // AES_H

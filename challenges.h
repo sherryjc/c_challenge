@@ -1,4 +1,6 @@
 #pragma once
+#ifndef CHALLENGES_H
+#define CHALLENGES_H
 
 namespace Challenges {
 
@@ -14,4 +16,8 @@ namespace Challenges {
 	bool Set1Ch7y();
 	bool Set1Ch7z();
 	bool Set1Ch8();
+	bool Set1Ch8a();
 }
+
+#endif // CHALLENGES_H
+

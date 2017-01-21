@@ -1,8 +1,7 @@
 
 #include <stdio.h>
 #include "utils.h"
-
-
+#include <unordered_set>
 
 
 static byte _hexByte(char c)
@@ -37,7 +36,7 @@ void io_utils::logError(const char* str)
 	fprintf(stderr, "Error: %s\n", str);
 }
 
-upByteArr io_utils::readBinFile(const char* pFileName, size_t& outSz, size_t blockSize, byte padByte)
+upByteArr io_utils::readBinFile(const char* pFileName, size_t& outSz, size_t blockSize, PaddingScheme padSch)
 {
 	outSz = 0;
 	FILE* pFile = fopen(pFileName, "rb");
@@ -70,6 +69,7 @@ upByteArr io_utils::readBinFile(const char* pFileName, size_t& outSz, size_t blo
 	}
 
 	// Add padding bytes if necessary
+	byte padByte = (padSch == PaddingScheme::PKCS_7) ? static_cast<byte>(paddedCnt-lSize) : 0;
 	for (size_t i = lSize; i < paddedCnt; ++i) {
 		destBuf[i] = padByte;
 	}
@@ -189,7 +189,7 @@ void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t c
 	std::cout << pIntroStr;
 	for (size_t i=0; i<cnt; i++) {
 		char buf[8];
-		sprintf_s(buf, _countof(buf), "0x%2x ", pBytes[i]);
+		//sprintf_s(buf, _countof(buf), "0x%2x ", pBytes[i]);
 		std::cout << buf;
 	}
 	for (size_t i = 0; i < cnt; i++) {
@@ -377,7 +377,7 @@ upCharArr crypto_utils::binToBase64(const byte* pBuf, size_t inCnt, size_t& outC
 	return pOutBuf;
 }
 
-std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt, size_t blockSize, byte padByte)
+std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt, size_t blockSize, PaddingScheme padSch)
 {
 	// Assumption: CR-LF have already been stripped from input
 
@@ -430,6 +430,7 @@ std::unique_ptr<byte[]> crypto_utils::base64ToBin(const char* pB64Buf, size_t in
 	// Now fill in block padding if so requested
 	size_t adjustedCnt = ((blockSize > 0) && oCnt % blockSize) ? (outCnt / blockSize + 1) * blockSize : oCnt;
 
+	byte padByte = (padSch == PaddingScheme::PKCS_7) ? static_cast<byte>(adjustedCnt - oCnt) : 0;
 	while (oCnt < adjustedCnt) {
 		pOutBuf[oCnt++] = padByte;
 	}
@@ -697,6 +698,22 @@ std::unique_ptr<char[]> crypto_utils::decodeUsingFixedKeyLength(const byte* pBin
 	//std::unique_ptr<char[]> pCleartext = crypto_utils::decryptRepeatingKey(pBinBuf, binCnt, pKey, keyLength);
 
 	return pCleartext;
+}
+
+bool crypto_utils::checkDuplicateBlocks(const std::string& str, size_t blockSize)
+{
+	std::unordered_set<std::string> uset;
+	for (size_t pos = 0; pos < str.length(); pos += blockSize) {
+		std::string s = str.substr(pos, blockSize);
+		auto itr = uset.find(s);
+		if (itr != uset.end()) {
+			// we found a duplicate sub-string
+			std::cout << "String has a duplicated block at position " << pos << std::endl;
+			return true;
+		}
+		uset.emplace(s);
+	}
+	return false;
 }
 
 

@@ -1,11 +1,13 @@
 #pragma once
+#ifndef UTILS_H
+#define UTILS_H
 
 #include "stdafx.h"
 
 typedef unsigned char byte;
 typedef int word4;    // assuming sizeof(int) = 4; handle this 
 
-typedef enum {
+typedef enum  {
 	BINARY,
 	BASE64,
 	HEX,
@@ -15,12 +17,17 @@ typedef enum {
 	UTF_16LE
 } FileType;
 
+typedef enum {
+	PKCS_7,
+	NULLS
+} PaddingScheme;
+
 using upByteArr = std::unique_ptr<byte[]>;
 using upCharArr = std::unique_ptr<char[]>;
 
 namespace io_utils {
 
-	upByteArr readBinFile(const char* pFileName, size_t& outCnt, size_t blockSize=0, byte padByte=0);
+	upByteArr readBinFile(const char* pFileName, size_t& outCnt, size_t blockSize=0, PaddingScheme padSch=PaddingScheme::PKCS_7);
 	upCharArr readTextFile(const char* pFileName, size_t& outCnt);
 	upCharArr readTextFileStripCRLF(const char* pFileName, size_t& outCnt);
 	size_t writeBinFile(const char* pFileName, const byte* pBuffer, size_t cch);
@@ -38,11 +45,11 @@ namespace dbg_utils {
 }
 
 namespace crypto_utils {
-
+	
 	upByteArr hexToBin(const char* pHexBuf, size_t inCnt, size_t& outCnt);
 	upCharArr binToHex(const byte* pBuf, size_t inCnt, size_t& outCnt);
 	upCharArr binToBase64(const byte* pBuf, size_t inCnt, size_t& outCnt);
-	upByteArr base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt, size_t blockSize = 0, byte padByte = 0);
+	upByteArr base64ToBin(const char* pB64Buf, size_t inCnt, size_t& outCnt, size_t blockSize = 0, PaddingScheme padSch=PaddingScheme::PKCS_7);
 	upCharArr binToTxtANSI(const byte* pBuf, size_t inCnt, size_t& outCnt);
 
 	bool convHexToBase64(const char* pHexFile, const char* pBase64File);
@@ -63,4 +70,7 @@ namespace crypto_utils {
 	unsigned getKeyLengthRatings(const byte* pBytes, unsigned stKeyLen, unsigned endKeyLen, KeyLengthRatings& keyLengthRatings);
 	upCharArr decodeUsingFixedKeyLength(const byte* pBinBuf, size_t binCnt, byte* pKey, size_t keyLength);
 
+	bool checkDuplicateBlocks(const std::string& str, size_t blockSize);
 }
+
+#endif // UTILS_H

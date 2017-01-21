@@ -117,7 +117,7 @@ size_t Aes::ReadBin(const char* pFilename)
 {
 	size_t binCnt = 0;
 	// Read the binary file, adding padding bytes to round to a multiple of the block size 
-	std::unique_ptr<byte[]> pBin = io_utils::readBinFile(pFilename, binCnt, m_nBlockSize, kPadByteVal);
+	std::unique_ptr<byte[]> pBin = io_utils::readBinFile(pFilename, binCnt, m_nBlockSize, PaddingScheme::PKCS_7);
 	if (!pBin || !pBin.get() || binCnt == 0) {
 		return 0;
 	}
@@ -144,8 +144,10 @@ size_t Aes::ReadAscii(const char* pFilename)
 	for (size_t i = 0; i < charCnt; i++) {
 		pInBuf[i] = static_cast<byte>(pTxtIn[i]);
 	}
+	
+	byte padByte = static_cast<byte>(binCnt - charCnt);  // PKCS_7 
 	for (size_t i = charCnt; i < binCnt; ++i) {
-		pInBuf[i] = static_cast<byte>(kPadCharVal);
+		pInBuf[i] = padByte;
 	}
 
 	m_pInput = std::move(pInBuf);
@@ -165,7 +167,7 @@ size_t Aes::ReadBase64(const char* pFilename)
 	}
 
 	size_t binCnt = 0;
-	m_pInput = std::move(crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt, m_nBlockSize, kPadByteVal));
+	m_pInput = std::move(crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt, m_nBlockSize));
 	m_nInputSize = binCnt;
 
 	// Output size is same as binary input - allocate the buffer now
@@ -188,6 +190,9 @@ size_t Aes::Write(const char* pFilename, FileType fType)
 	case BASE64:
 		//nWritten = WriteBase64(pFilename);
 		break;
+	case HEX:
+		nWritten = WriteHex(pFilename);
+		break;
 	default:
 		break;
 	}
@@ -199,13 +204,19 @@ size_t Aes::WriteBin(const char* pFilename)
 	return io_utils::writeBinFile(pFilename, m_pOutput.get(), m_nOutputSize);
 }
 
+size_t Aes::WriteHex(const char* pFilename)
+{
+	size_t hexCnt = 0;
+	upCharArr pHex = crypto_utils::binToHex(m_pOutput.get(), m_nOutputSize, hexCnt);
+	return io_utils::writeTextFile(pFilename, pHex.get(), hexCnt);
+}
+
 void Aes::InitOutput(size_t sz)
 {
 	m_pOutput.reset(new byte[sz+32]);    // TODO - a lot of extra padding necessary to avoid heap crash on deallocate - why?
 	SecureZeroMemory(m_pOutput.get(), sz);
 	m_nOutputSize = sz;
 }
-
 
 void Aes::SetKey(const byte* pKey, const size_t keyLen)
 {

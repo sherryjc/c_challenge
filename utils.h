@@ -71,6 +71,7 @@ namespace crypto_utils {
 	upCharArr decodeUsingFixedKeyLength(const byte* pBinBuf, size_t binCnt, byte* pKey, size_t keyLength);
 
 	bool checkDuplicateBlocks(const std::string& str, size_t blockSize);
+	void xorBlock(byte* pDest, const byte* pIn1, const byte* pIn2, size_t cnt);
 }
 
 #endif // UTILS_H

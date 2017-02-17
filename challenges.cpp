@@ -400,6 +400,10 @@ bool Challenges::Set1Ch7z()
 
 bool Challenges::Set1Ch8()
 {
+	// This challenge: detect ECB
+	// We just check for duplicate blocks in the cipher text. If we are
+	// lucky, there will have been duplicate blocks of plain text (which
+	// will show up as duplicates in the cipher text in ECB).
 	static const char* pInFile = "./data/set1/challenge8/input_hex.txt";
 
 	size_t hexCharCnt = 0;
@@ -451,4 +455,45 @@ bool Challenges::Set1Ch8a()
 	std::cout << "Wrote " << nWritten << " hex characters to encrypted file " << pEncFile << std::endl;
 
 	return nWritten > 0;
+}
+
+bool Challenges::Set2Ch10()
+{
+	// AES in CBC mode
+	static const char* pInFile = "./data/set2/challenge10/10.txt";   // Base64
+	static const char* pOutputFile = "./data/set2/challenge10/decrypted.txt";
+	static const char* outputFileHex = "./data/set2/challenge10/decryptedHex.txt";
+	static const char* inputFileHex = "./data/set2/challenge10/encryptedHex.txt";
+
+
+#if 0
+	// Write out a hex version of the encrypted input (e.g. to paste to a web-site decryption tool)
+	size_t inpHexCnt = 0;
+	std::unique_ptr<char[]> pInputHex = crypto_utils::binToHex((byte*)(pBinBytes.get()), binCnt, inpHexCnt);
+	std::string hstr(pInputHex.get());
+	size_t nhWritten = io_utils::writeTextFile(inputFileHex, hstr.c_str(), hstr.length());
+	std::cout << "Wrote " << nhWritten << " hex characters to " << inputFileHex << std::endl;
+#endif
+
+	static const byte bKey[] = "YELLOW SUBMARINE";
+	std::string key("YELLOW SUBMARINE");
+
+	Aes aes(128, Aes::CBC);
+	aes.SetKey(bKey, key.length());
+	aes.Read(pInFile, FileType::BASE64);
+	aes.Decrypt();
+	size_t nWritten = aes.Write(pOutputFile, FileType::BINARY);
+
+	bool bRc = (nWritten != 0);
+	std::cout << "Wrote " << nWritten << " bytes to " << pOutputFile << std::endl;
+
+#if 0
+	// Write out the decrypted file in hex
+	size_t hexCnt = 0;
+	std::unique_ptr<char[]> pResultsHex = crypto_utils::binToHex((byte*)(pDecrypted.get()), binCnt, hexCnt);
+	std::string ostr(pResultsHex.get());
+	nWritten = io_utils::writeTextFile(outputFileHex, ostr.c_str(), ostr.length());
+	std::cout << "Wrote " << nWritten << " hex characters to " << outputFileHex << std::endl;
+#endif
+	return bRc;
 }

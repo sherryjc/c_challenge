@@ -7,7 +7,12 @@
 class Aes
 {
 public:
-	Aes(size_t nBlockSizeBits);
+	enum _mode {
+		ECB,		// Electronic Codebook (not secure, but the default due to backwards test compatibility)
+		CBC			// Cipher Block Chaining
+	};
+
+	Aes(size_t nBlockSizeBits, int mode=Aes::ECB);
 	~Aes();
 
 	size_t Read(const char* pFilename, FileType fType);
@@ -27,6 +32,11 @@ private:
 	size_t WriteHex(const char* pFilename);
 
 	void InitOutput(size_t sz);
+	enum _iv_type {
+		ALL_ZEROES,
+		RANDOM
+	};
+	void SetInitializationVector(int ivType);
 
 	byte GetSBoxValue(byte num);
 	byte GetSBoxInvert(byte num);
@@ -64,6 +74,9 @@ private:
 	std::unique_ptr<byte[]>	m_pOutput;
 	std::unique_ptr<byte[]>	m_pKey;
 	std::unique_ptr<byte[]>	m_pExpandedKey;
+	std::unique_ptr<byte[]>	m_pInitVec;
+
+	int m_mode;
 };
 
 #endif // AES_H

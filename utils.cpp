@@ -716,4 +716,12 @@ bool crypto_utils::checkDuplicateBlocks(const std::string& str, size_t blockSize
 	return false;
 }
 
+// XOR a block 
+// pDest could be the same as one of the inputs
+void crypto_utils::xorBlock(byte* pDest, const byte* pIn1, const byte* pIn2, size_t cnt)
+{
+	for (size_t i = 0; i < cnt; ++i) {
+		pDest[i] = pIn1[i] ^ pIn2[i];
+	}
+}
 

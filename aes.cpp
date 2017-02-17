@@ -66,7 +66,7 @@ static byte Rcon[255] = {
 	0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb };
 
 
-Aes::Aes(size_t nBlockSizeBits) :
+Aes::Aes(size_t nBlockSizeBits, int mode) :
 	m_nBlockSizeBits(nBlockSizeBits),
 	m_nBlockSize(nBlockSizeBits / 8),
 	m_nRounds(0),
@@ -78,7 +78,9 @@ Aes::Aes(size_t nBlockSizeBits) :
 	m_pInput(nullptr),
 	m_pOutput(nullptr),
 	m_pKey(nullptr),
-	m_pExpandedKey(nullptr)
+	m_pExpandedKey(nullptr),
+	m_pInitVec(nullptr),
+	m_mode(mode)
 {
 	if (nBlockSizeBits == 128)
 	{
@@ -86,6 +88,8 @@ Aes::Aes(size_t nBlockSizeBits) :
 		m_nBlockColumns = 4;
 		m_nExpandedKeySize = 176;
 	}
+
+	SetInitializationVector(Aes::ALL_ZEROES); // Not needed in all modes but set it anyway
 }
 
 Aes::~Aes()
@@ -218,6 +222,19 @@ void Aes::InitOutput(size_t sz)
 	m_nOutputSize = sz;
 }
 
+void Aes::SetInitializationVector(int ivType)
+{
+	// For now just sets the IV to all 0s. 
+	switch (ivType) {
+	case Aes::RANDOM:
+		// TODO
+		break;
+	case Aes::ALL_ZEROES:
+	default:
+		m_pInitVec.reset(new byte[m_nBlockSize]{ 0 });
+	}
+}
+
 void Aes::SetKey(const byte* pKey, const size_t keyLen)
 {
 	m_nKeySize = keyLen;
@@ -234,15 +251,21 @@ void Aes::SetKey(const byte* pKey, const size_t keyLen)
 
 void Aes::Encrypt()
 {
-	// 128-bit ECB mode
+
 	byte* pState = m_pOutput.get();
 	byte* pInput = m_pInput.get();
 	size_t inputIdx = 0;
+	byte* pPrevEncBlock = m_pInitVec.get();  
 
 	while (inputIdx < m_nInputSize)
 	{
+		if (m_mode == Aes::CBC) {
+			// XOR current block of plain text with previous encrypted block
+			crypto_utils::xorBlock(pInput, pInput, pPrevEncBlock, m_nBlockSize);
+		}
 		EncryptBlock(pState, pInput);
 		inputIdx += m_nBlockSize;
+		pPrevEncBlock = pState;
 		pState += m_nBlockSize;
 		pInput += m_nBlockSize;
 	}
@@ -255,12 +278,18 @@ void Aes::Decrypt()
 	byte* pState = m_pOutput.get();
 	byte* pInput = m_pInput.get();
 	size_t inputIdx = 0;
+	byte* pPrevDecBlock = m_pInitVec.get();
 
 	while (inputIdx < m_nInputSize)
 	{
 		DecryptBlock(pState, pInput);
+		if (m_mode == Aes::CBC) {
+			// XOR current block of plain text with previous decrypted block
+			crypto_utils::xorBlock(pState, pState, pPrevDecBlock, m_nBlockSize);
+		}
 		inputIdx += m_nBlockSize;
 		pState += m_nBlockSize;
+		pPrevDecBlock = pInput;
 		pInput += m_nBlockSize;
 	}
 }

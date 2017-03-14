@@ -71,7 +71,14 @@ namespace crypto_utils {
 	upCharArr decodeUsingFixedKeyLength(const byte* pBinBuf, size_t binCnt, byte* pKey, size_t keyLength);
 
 	bool checkDuplicateBlocks(const std::string& str, size_t blockSize);
+	int getLongestRepeatedPattern(const byte* pBytes, size_t nBytes);
 	void xorBlock(byte* pDest, const byte* pIn1, const byte* pIn2, size_t cnt);
+
+	bool getRandomBool();
+	byte getRandomByte();
+	unsigned int getRandomNumber();
+	void generateKey(byte* pKey, size_t len);
+
 }
 
 #endif // UTILS_H

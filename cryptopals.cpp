@@ -40,9 +40,12 @@ int main(int argc, char* argv[])
 	case 10:
 		bRc &= Challenges::Set2Ch10();
 		break;
+	case 11:
+		bRc &= Challenges::Set2Ch11();
+		break;
 	case 0:
 	default:
-		bRc &= Challenges::Set2Ch10();
+		bRc &= Challenges::Set2Ch11();
 		break;
 	}
 

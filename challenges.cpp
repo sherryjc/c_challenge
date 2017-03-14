@@ -497,3 +497,36 @@ bool Challenges::Set2Ch10()
 #endif
 	return bRc;
 }
+
+bool Challenges::Set2Ch11()
+{
+	// This is the plain text to submit to the encryption oracle
+	static const char pTxt[] = "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnop";
+	static const size_t nTrials = 100;
+	int detectedModeCnt[3]{ 0 };
+
+	for (size_t i = 0; i < nTrials; ++i) {
+		Aes aes(128);
+
+		aes.EncryptionOracle_2_11(pTxt, _countof(pTxt) - 1);
+		size_t resultSz = 0;
+		const byte* pResult = aes.Result(resultSz);
+
+		//std::cout << std::endl << pResult << std::endl;
+
+		int detectedMode = aes.DetectionOracle(pResult, resultSz);
+		detectedModeCnt[detectedMode]++;
+	}
+
+	std::cout << "Counters: " << std::endl;
+	std::cout << "ECB " << detectedModeCnt[Aes::ECB] << std::endl;
+	std::cout << "CBC " << detectedModeCnt[Aes::CBC] << std::endl;
+	std::cout << "UNKNOWN " << detectedModeCnt[Aes::AES_UNKNOWN] << std::endl;
+
+	return true;
+}
+
+bool Challenges::Set2Ch12()
+{
+	// 
+}

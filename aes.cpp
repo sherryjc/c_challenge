@@ -94,7 +94,11 @@ Aes::Aes(size_t nBlockSizeBits, int mode) :
 
 Aes::~Aes()
 {
-	// m_pOutput.reset(nullptr);
+	m_pInput = nullptr;
+	m_pOutput = nullptr;
+	m_pKey = nullptr;
+	m_pExpandedKey = nullptr;
+	m_pInitVec = nullptr;
 }
 
 size_t Aes::Read(const char* pFilename, FileType fType)
@@ -215,6 +219,14 @@ size_t Aes::WriteHex(const char* pFilename)
 	return io_utils::writeTextFile(pFilename, pHex.get(), hexCnt);
 }
 
+const byte* Aes::Result(size_t& len)
+{
+	len = m_nOutputSize;
+	byte* pOut = m_pOutput.get();
+	pOut[len] = '\0';
+	return pOut;
+}
+
 void Aes::InitOutput(size_t sz)
 {
 	m_pOutput.reset(new byte[sz+32]);    // TODO - a lot of extra padding necessary to avoid heap crash on deallocate - why?
@@ -222,16 +234,37 @@ void Aes::InitOutput(size_t sz)
 	m_nOutputSize = sz;
 }
 
+void Aes::SetMode(int mode)
+{
+	m_mode = mode;
+}
+
+int Aes::Mode() const
+{
+	return m_mode;
+}
+
 void Aes::SetInitializationVector(int ivType)
 {
-	// For now just sets the IV to all 0s. 
+	// Initialize the IV to all 0s, then set the values if necessary
+
+	m_pInitVec.reset(new byte[m_nBlockSize]{ 0 });
+
 	switch (ivType) {
+
 	case Aes::RANDOM:
-		// TODO
+	{
+		byte* pV = m_pInitVec.get();
+		for (size_t i = 0; i < m_nBlockSize; ++i) {
+			*pV++ = crypto_utils::getRandomByte();
+		}
+	}
 		break;
+
 	case Aes::ALL_ZEROES:
 	default:
-		m_pInitVec.reset(new byte[m_nBlockSize]{ 0 });
+		// Just leave the IV set to all 0s
+		break;
 	}
 }
 
@@ -249,10 +282,26 @@ void Aes::SetKey(const byte* pKey, const size_t keyLen)
 	ExpandKey();
 }
 
+void Aes::SetKey(const size_t keyLen)
+{
+	m_nKeySize = keyLen;
+	m_pKey.reset(new byte[keyLen + 1]);
+	byte* p = m_pKey.get();
+	crypto_utils::generateKey(p, keyLen);
+	p[keyLen] = '\0';
+
+	m_pExpandedKey.reset(new byte[m_nExpandedKeySize]);
+	ExpandKey();
+}
+
 void Aes::Encrypt()
 {
-
 	byte* pState = m_pOutput.get();
+	if (!pState) {
+		InitOutput(m_nInputSize);
+		pState = m_pOutput.get();
+	}
+
 	byte* pInput = m_pInput.get();
 	size_t inputIdx = 0;
 	byte* pPrevEncBlock = m_pInitVec.get();  
@@ -269,7 +318,6 @@ void Aes::Encrypt()
 		pState += m_nBlockSize;
 		pInput += m_nBlockSize;
 	}
-
 }
 
 void Aes::Decrypt()
@@ -612,3 +660,96 @@ void Aes::DecryptBlock(byte* pOutput, const byte* pInput)
 
 }
 
+void Aes::ModifyInput1(const char* pInput, size_t inputLen)
+{
+	// Append 5-10 bytes before and after
+	// Counts are random, values ... ??
+	static const char appendChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+	size_t nBefore = (crypto_utils::getRandomNumber() % 6) + 5;
+	size_t nAfter = (crypto_utils::getRandomNumber() % 6) + 5;
+	m_nInputSize = inputLen + nBefore + nAfter;
+	// Round up the size of the buffer allocated to the nearest multiple of the block size
+	size_t paddedCnt = (m_nBlockSize > 0 && m_nInputSize % m_nBlockSize) ? (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize : m_nInputSize;
+
+	m_pInput.reset(new byte[paddedCnt+1]);
+	byte* pInp = m_pInput.get();
+	const char *pAppend = &appendChars[0];
+
+	for (size_t i = 0; i < nBefore; ++i) {
+		*pInp++ = static_cast<byte>(*pAppend++);
+	}
+
+	for (size_t i = 0; i < inputLen; ++i) {
+		*pInp++ = static_cast<byte>(*pInput++);
+	}
+
+	for (size_t i = 0; i < nAfter; ++i) {
+		*pInp++ = static_cast<byte>(*pAppend++);
+	}
+
+	// PKCS_7 padding
+	size_t nPadBytes = paddedCnt - m_nInputSize;
+	for (size_t i = 0; i < nPadBytes; ++i) {
+		*pInp++ = static_cast<byte>(nPadBytes);
+	}
+	*pInp = '\0';
+}
+
+void Aes::EncryptionOracle_2_11(const char* pInput, size_t len)
+{
+	// 1. Generate a random key (of the same length as the block size)
+	// 2. Append bytes before and after the plain text, numbers of bytes chosen randomly
+	// 3. Encrypt, choosing ECB or CBC randomly
+
+	SetKey(m_nBlockSize);  
+
+	ModifyInput1(pInput, len);
+	InitOutput(m_nInputSize);
+
+	SetMode(crypto_utils::getRandomBool() ? Aes::CBC : Aes::ECB);
+	SetInitializationVector(Mode() == Aes::CBC ? Aes::RANDOM : Aes::ALL_ZEROES);
+	Encrypt();
+}
+
+int Aes::DetectionOracle_2_11(const byte* pInput, size_t len)
+{
+	int res = crypto_utils::getLongestRepeatedPattern(pInput, len);
+
+	return res >= m_nBlockSize ? Aes::ECB : Aes::CBC;
+}
+
+void Aes::ModifyInput_2_12(const char* pInput, size_t inputLen, const char* pFilename)
+{
+	Aes::ReadBase64(const char* pFilename)
+
+}
+
+static size_t s_nKeySize = 0;
+static byte* s_pKey = nullptr;
+
+void Aes::EncryptionOracle_2_12(const char* pInput, size_t len, const char* pFilename)
+{
+	// 1. Generate a random key (of the same length as the block size)
+	//    - Do this once and re-use the key
+	// 2. Append bytes read in from base64 file after the plain text
+	// 3. Encrypt using ECB 
+
+	// Generate the key the first time we are called in this session and stash it
+	if (s_nKeySize == 0 || nullptr == s_pKey) {
+		SetKey(m_nBlockSize);
+		s_nKeySize = m_nKeySize;
+		s_pKey = m_pKey.get();
+	}
+	else {
+		// Re-use the key we already generated
+		SetKey(s_pKey, s_nKeySize);
+	}
+
+	ModifyInput_2_12(pInput, len);
+
+	InitOutput(m_nInputSize);
+
+	SetMode(Aes::ECB);
+	Encrypt();
+}

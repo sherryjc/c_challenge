@@ -1,7 +1,9 @@
 
+#define _CRT_RAND_S
 #include <stdio.h>
 #include "utils.h"
 #include <unordered_set>
+#include <stdlib.h>
 
 
 static byte _hexByte(char c)
@@ -716,12 +718,74 @@ bool crypto_utils::checkDuplicateBlocks(const std::string& str, size_t blockSize
 	return false;
 }
 
+int crypto_utils::getLongestRepeatedPattern(const byte* pBytes, size_t nBytes)
+{
+	const byte* pCurrent = pBytes;
+	const byte* pEnd = pCurrent + nBytes;
+	int highCnt = 0;
+	int currCnt = 0;
+	const byte* pComp1 = nullptr;
+	const byte* pComp2 = nullptr;
+
+	while (pCurrent < pEnd) {
+		currCnt = 0;
+		pComp1 = pCurrent;
+		pComp2 = pComp1;
+		++pComp2;
+	
+		while (pComp2 < pEnd && *pComp2++ != *pComp1);
+		if (pComp2 < pEnd) {
+			++currCnt;
+			++pComp1;
+		}
+		while (pComp2 < pEnd && *pComp2++ == *pComp1++) {
+			++currCnt;
+		}
+
+		if (currCnt > highCnt) {
+			highCnt = currCnt;
+		}
+		++pCurrent;
+	}
+
+	return highCnt;
+}
+
+
 // XOR a block 
 // pDest could be the same as one of the inputs
 void crypto_utils::xorBlock(byte* pDest, const byte* pIn1, const byte* pIn2, size_t cnt)
 {
 	for (size_t i = 0; i < cnt; ++i) {
 		pDest[i] = pIn1[i] ^ pIn2[i];
+	}
+}
+
+unsigned int crypto_utils::getRandomNumber()
+{
+	unsigned int val = 0;
+	errno_t rc = rand_s(&val);
+	return val;
+}
+
+byte crypto_utils::getRandomByte()
+{
+	unsigned int val = 0;
+	errno_t rc = rand_s(&val);
+	return static_cast<byte>(val & 0xff);
+}
+
+bool crypto_utils::getRandomBool()
+{
+	unsigned int val = 0;
+	errno_t rc = rand_s(&val);
+	return (val & 0x1) ? true : false;
+}
+
+void crypto_utils::generateKey(byte* pKey, size_t len)
+{
+	for (size_t i = 0; i < len; ++i) {
+		*pKey++ = getRandomByte();
 	}
 }
 

@@ -18,6 +18,8 @@ namespace Challenges {
 	bool Set1Ch8();
 	bool Set1Ch8a();
 	bool Set2Ch10();
+	bool Set2Ch11();
+	bool Set2Ch12();
 }
 
 #endif // CHALLENGES_H

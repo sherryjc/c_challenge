@@ -16,8 +16,9 @@ public:
 	Aes(size_t nBlockSizeBits, int mode=Aes::ECB);  // ECB not secure, but the default due to backwards test compatibility
 	~Aes();
 
-	size_t Read(const char* pFilename, FileType fType);
+	size_t BlockSize() const;  // in bytes
 
+	size_t Read(const char* pFilename, FileType fType);
 	size_t Write(const char* pFilename, FileType fType);
 
 	// Set key to known value
@@ -33,12 +34,9 @@ public:
 
 	const byte* Result(size_t& len);
 
-	// Specific to various exercises (numbered _Set_Challenge)
-	void EncryptionOracle_2_11(const char* pInput, size_t len);
 	int DetectMode(const byte* pCipherTxt, size_t len);
 
 	void EncryptionOracle_2_12(const byte* pInput, size_t len, const char* pFilename);
-	int DetectionOracle_2_12(const byte* pInput, size_t len);
 
 
 private:
@@ -49,13 +47,15 @@ private:
 	size_t WriteBin(const char* pFilename);
 	size_t WriteHex(const char* pFilename);
 
-	void InitOutput(size_t sz);
+public:
+	void InitOutput(size_t sz=0);
 	enum _iv_type {
 		ALL_ZEROES,
 		RANDOM
 	};
 	void SetInitializationVector(int ivType);
 
+private:
 	byte GetSBoxValue(byte num);
 	byte GetSBoxInvert(byte num);
 	byte GetRconValue(byte num);
@@ -79,10 +79,12 @@ private:
 	static void MIxVec4(byte* v);
 	
 	// Modifies input according to internal rules for the
-	// "specific exercise" functions above
+	// "specific exercise" functions above ... move these to backend, or somewhere
+public:
 	void ModifyInput1(const char* pInput, size_t inputLen);	
 	void ModifyInput_2_12(const byte* pInput, size_t inputLen, const char* pFilename);
 
+private:
 // data members
 	size_t m_nBlockSizeBits;
 	size_t m_nBlockSize;

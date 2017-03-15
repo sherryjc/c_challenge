@@ -20,6 +20,7 @@ namespace Challenges {
 	bool Set2Ch10();
 	bool Set2Ch11();
 	bool Set2Ch12();
+	bool Set2Ch13();
 }
 
 #endif // CHALLENGES_H

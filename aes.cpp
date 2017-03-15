@@ -230,8 +230,9 @@ const byte* Aes::Result(size_t& len)
 	return pOut;
 }
 
-void Aes::InitOutput(size_t sz)
+void Aes::InitOutput(size_t inSize)   // = 0; defaults to size of input
 {
+	size_t sz = (inSize > 0) ? inSize : m_nInputSize; 
 	m_pOutput.reset(new byte[sz+32]);    // TODO - a lot of extra padding necessary to avoid heap crash on deallocate - why?
 	SecureZeroMemory(m_pOutput.get(), sz);
 	m_nOutputSize = sz;
@@ -245,6 +246,11 @@ void Aes::SetMode(int mode)
 int Aes::Mode() const
 {
 	return m_mode;
+}
+
+size_t Aes::BlockSize() const  // in bytes
+{
+	return m_nBlockSize;
 }
 
 void Aes::SetInitializationVector(int ivType)
@@ -285,6 +291,7 @@ void Aes::SetKey(const byte* pKey, const size_t keyLen)
 	ExpandKey();
 }
 
+// Set automatically generated key of specified length
 void Aes::SetKey(const size_t keyLen)
 {
 	m_nKeySize = keyLen;
@@ -699,22 +706,6 @@ void Aes::ModifyInput1(const char* pInput, size_t inputLen)
 	*pInp = '\0';
 }
 
-void Aes::EncryptionOracle_2_11(const char* pInput, size_t len)
-{
-	// 1. Generate a random key (of the same length as the block size)
-	// 2. Append bytes before and after the plain text, numbers of bytes chosen randomly
-	// 3. Encrypt, choosing ECB or CBC randomly
-
-	SetKey(m_nBlockSize);  
-
-	ModifyInput1(pInput, len);
-	InitOutput(m_nInputSize);
-
-	SetMode(crypto_utils::getRandomBool() ? Aes::CBC : Aes::ECB);
-	SetInitializationVector(Mode() == Aes::CBC ? Aes::RANDOM : Aes::ALL_ZEROES);
-	Encrypt();
-}
-
 int Aes::DetectMode(const byte* pCipherTxt, size_t len)
 {
 	int res = crypto_utils::getLongestRepeatedPattern(pCipherTxt, len);
@@ -772,3 +763,4 @@ void Aes::EncryptionOracle_2_12(const byte* pInput, size_t len, const char* pFil
 	SetMode(Aes::ECB);
 	Encrypt();
 }
+

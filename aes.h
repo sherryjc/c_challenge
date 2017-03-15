@@ -35,9 +35,9 @@ public:
 
 	// Specific to various exercises (numbered _Set_Challenge)
 	void EncryptionOracle_2_11(const char* pInput, size_t len);
-	int DetectionOracle_2_11(const byte* pInput, size_t len);
+	int DetectMode(const byte* pCipherTxt, size_t len);
 
-	void EncryptionOracle_2_12(const char* pInput, size_t len, const char* pFilename);
+	void EncryptionOracle_2_12(const byte* pInput, size_t len, const char* pFilename);
 	int DetectionOracle_2_12(const byte* pInput, size_t len);
 
 
@@ -81,6 +81,7 @@ private:
 	// Modifies input according to internal rules for the
 	// "specific exercise" functions above
 	void ModifyInput1(const char* pInput, size_t inputLen);	
+	void ModifyInput_2_12(const byte* pInput, size_t inputLen, const char* pFilename);
 
 // data members
 	size_t m_nBlockSizeBits;

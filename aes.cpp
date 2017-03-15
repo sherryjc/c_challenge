@@ -6,6 +6,9 @@
 #include "utils.h"
 #include "aes.h"
 
+using namespace crypto_utils;
+using namespace io_utils;
+
 static byte sbox[256] = {
 	//0     1    2     3     4     5     6     7     8     9     A     B     C     D     E     F
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, //0
@@ -670,7 +673,7 @@ void Aes::ModifyInput1(const char* pInput, size_t inputLen)
 	size_t nAfter = (crypto_utils::getRandomNumber() % 6) + 5;
 	m_nInputSize = inputLen + nBefore + nAfter;
 	// Round up the size of the buffer allocated to the nearest multiple of the block size
-	size_t paddedCnt = (m_nBlockSize > 0 && m_nInputSize % m_nBlockSize) ? (m_nInputSize / m_nBlockSize + 1) * m_nBlockSize : m_nInputSize;
+	size_t paddedCnt = paddedSize(m_nInputSize, m_nBlockSize); 
 
 	m_pInput.reset(new byte[paddedCnt+1]);
 	byte* pInp = m_pInput.get();
@@ -712,23 +715,39 @@ void Aes::EncryptionOracle_2_11(const char* pInput, size_t len)
 	Encrypt();
 }
 
-int Aes::DetectionOracle_2_11(const byte* pInput, size_t len)
+int Aes::DetectMode(const byte* pCipherTxt, size_t len)
 {
-	int res = crypto_utils::getLongestRepeatedPattern(pInput, len);
+	int res = crypto_utils::getLongestRepeatedPattern(pCipherTxt, len);
 
 	return res >= m_nBlockSize ? Aes::ECB : Aes::CBC;
 }
 
-void Aes::ModifyInput_2_12(const char* pInput, size_t inputLen, const char* pFilename)
+void Aes::ModifyInput_2_12(const byte* pInput, size_t inputLen, const char* pFilename)
 {
-	Aes::ReadBase64(const char* pFilename)
+	size_t base64Cnt = 0;
+	std::unique_ptr<char[]>pBase64Buf = readTextFileStripCRLF(pFilename, base64Cnt);
+	if (!pBase64Buf || !pBase64Buf.get() || base64Cnt == 0) {
+		return;
+	}
 
+	size_t binCnt = 0;
+	// No block size in the next call, do not apply padding yet
+	std::unique_ptr<byte[]> pFileBytes = std::move(base64ToBin(pBase64Buf.get(), base64Cnt, binCnt));
+
+	// 
+	m_nInputSize = inputLen + binCnt;
+	size_t paddedCnt = paddedSize(m_nInputSize, m_nBlockSize);
+	m_pInput.reset(new byte[paddedCnt + 1]);
+	byte* pInp = m_pInput.get();
+	byteCopy(pInp, paddedCnt + 1, reinterpret_cast<const byte*>(pInput), inputLen);
+	byteCopy(pInp + inputLen, paddedCnt + 1 - inputLen, pFileBytes.get(), binCnt);
+	pInp[paddedCnt] = '\0';
 }
 
 static size_t s_nKeySize = 0;
 static byte* s_pKey = nullptr;
 
-void Aes::EncryptionOracle_2_12(const char* pInput, size_t len, const char* pFilename)
+void Aes::EncryptionOracle_2_12(const byte* pInput, size_t len, const char* pFilename)
 {
 	// 1. Generate a random key (of the same length as the block size)
 	//    - Do this once and re-use the key
@@ -746,7 +765,7 @@ void Aes::EncryptionOracle_2_12(const char* pInput, size_t len, const char* pFil
 		SetKey(s_pKey, s_nKeySize);
 	}
 
-	ModifyInput_2_12(pInput, len);
+	ModifyInput_2_12(pInput, len, pFilename);
 
 	InitOutput(m_nInputSize);
 

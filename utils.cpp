@@ -185,6 +185,31 @@ void io_utils::separateStrings(std::vector<std::string>&vec, const char* pTxt, s
 	}
 }
 
+byte* io_utils::byteCopy(byte* pDst, size_t szDst, const byte* pSrc, size_t szSrc)
+{
+	if (szSrc > szDst) {
+		return nullptr;
+	}
+	byte* pRet = pDst;
+	for (size_t i = 0; i < szSrc; ++i) {
+		*pDst++ = *pSrc++;
+	}
+	return pRet;
+}
+
+bool io_utils::byteCompare(const byte* p1, const byte* p2, size_t n)
+{
+	if (!p1 || !p2 || n == 0) {
+		return false;
+	}
+
+	for (size_t i = 0; i < n; ++i) {
+		if (*p1++ != *p2++) {
+			return false;
+		}
+	}
+	return true;
+}
 void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt)
 {
 	std::cout << std::endl << "DEBUG: ";
@@ -789,3 +814,7 @@ void crypto_utils::generateKey(byte* pKey, size_t len)
 	}
 }
 
+size_t crypto_utils::paddedSize(size_t inpSz, size_t blkSz)
+{
+	return (blkSz > 0 && inpSz % blkSz) ? (inpSz / blkSz + 1) * blkSz : inpSz;
+}

@@ -8,6 +8,8 @@
 #include "utils.h"
 #include "aes.h"
 
+using namespace io_utils;
+
 bool Challenges::Set1Ch1()
 {
 	// Convert hex to base64 and back
@@ -514,7 +516,7 @@ bool Challenges::Set2Ch11()
 
 		//std::cout << std::endl << pResult << std::endl;
 
-		int detectedMode = aes.DetectionOracle(pResult, resultSz);
+		int detectedMode = aes.DetectMode(pResult, resultSz);
 		detectedModeCnt[detectedMode]++;
 	}
 
@@ -526,7 +528,117 @@ bool Challenges::Set2Ch11()
 	return true;
 }
 
+// Helper functions for Set2Ch12
+static void _setInput212(byte* pTxt, size_t sz)
+{
+	for (size_t j = 0; j < sz; ++j) {
+		pTxt[j] = 'A';
+	}
+	pTxt[sz] = '\0';
+
+}
+
+static void _setInput212a(byte* pTxt, size_t nPrepend, byte* pResultsBuf, size_t nResults)
+{
+	for (size_t j = 0; j < nPrepend; ++j) {
+		*pTxt++ = 'A';
+	}
+	for (size_t j = 0; j < nResults; ++j) {
+		*pTxt++ = *pResultsBuf++;
+	}
+	*pTxt = '\0';
+}
+
+
 bool Challenges::Set2Ch12()
 {
-	// 
+	// This is the plain text to submit to the encryption oracle
+
+	static const char* pFilename = "./data/set2/challenge12/Append.b64";
+
+	// Discover block size of cipher being used by the Oracle
+	static const size_t kMaxBlockSz = 32;
+	byte txtBuf[kMaxBlockSz+1]{ 0 };
+	byte resultBuf[kMaxBlockSz+1]{ 0 };
+	size_t resultIdx = 0;
+	size_t resultSz = 0;
+	size_t nDetectedBlkSz = 0;
+	int eDetectedMode = Aes::AES_UNKNOWN;
+
+	std::unique_ptr<byte[]> pLastResult = nullptr;
+	std::unique_ptr<byte[]> pCurrResult = nullptr;
+
+	for (size_t i = 1; i < kMaxBlockSz; ++i) {
+
+		_setInput212(txtBuf, i);
+
+		Aes aes(128);
+		aes.EncryptionOracle_2_12(txtBuf, i, pFilename);
+		const byte* pResult = aes.Result(resultSz);
+		pCurrResult.reset(new byte[resultSz]);
+		byteCopy(pCurrResult.get(), resultSz, pResult, resultSz);
+		if (byteCompare(pCurrResult.get(), pLastResult.get(), i-1)) {
+			nDetectedBlkSz = i-1;
+			eDetectedMode = aes.DetectMode(pResult, resultSz);
+			break;
+		}
+		pLastResult = std::move(pCurrResult);
+
+	}
+
+	std::cout << std::endl << "Block size " << nDetectedBlkSz << " detected" << std::endl;
+
+	// We detected the AES mode in use above - but using different input
+	// This needs to be redone. 
+	static const char* pOutTxt = (eDetectedMode == Aes::ECB) ? "ECB " : "UNKNOWN";
+	std::cout << "Detected Mode: " <<  pOutTxt << std::endl;
+
+	// Get one block's worth of the Oracle's internal text
+	for (size_t offset = 1; offset <= nDetectedBlkSz; ++offset) {
+		// Number of 'A' chars to prepend == nDetectedBlkSz - offset (one less each time through the loop)
+		size_t nLeadingChars = nDetectedBlkSz - offset;
+		// Number of results characters (plaintext we've already figured out) == resultIdx
+		_setInput212a(txtBuf, nLeadingChars, resultBuf, resultIdx);
+
+		// Create the dictionary for the current leading {block-1} chars plus all possible 
+		// values for the last byte position in the block
+		std::unordered_map<std::string, byte> dictionary;
+		for (int bv = 0; bv <= 0xff; ++bv) {
+			byte bVal = static_cast<byte>(bv);
+			txtBuf[nDetectedBlkSz-1] = bVal;
+			txtBuf[nDetectedBlkSz] = '\0';
+			Aes aes(128);
+			aes.EncryptionOracle_2_12(txtBuf, nDetectedBlkSz, pFilename);
+			const byte* pResult = aes.Result(resultSz);
+			byte* pTruncate = const_cast<byte *>(pResult);
+			pTruncate[nDetectedBlkSz] = '\0';
+			std::string s = reinterpret_cast<const char *>(pTruncate);
+			std::pair<std::string, byte>entry(s, bVal);
+			dictionary.insert(entry);
+		}
+
+		// Now get the output for the short input (just the remaining leading chars)
+		txtBuf[nLeadingChars] = '\0';
+		Aes aes(128);
+		aes.EncryptionOracle_2_12(txtBuf, nLeadingChars, pFilename);
+		// Find the resulting cipher text in our dictionary
+		const byte* pResult = aes.Result(resultSz);
+		byte* pTruncate = const_cast<byte *>(pResult);
+		pTruncate[nDetectedBlkSz] = '\0';
+		std::string s = reinterpret_cast<const char *>(pTruncate);
+		std::unordered_map<std::string, byte>::const_iterator fnd = dictionary.find(s);
+		if (fnd != dictionary.end()) {
+			resultBuf[resultIdx++] = fnd->second;
+		}
+		else {
+			std::cout << "Problem - returned cipher text not found in dictionary!" << std::endl;
+			return false;
+		}
+
+	}
+
+	std::cout << "First block of text: " << std::endl << resultBuf << std::endl;
+
+	return true;
+
 }

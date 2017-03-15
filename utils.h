@@ -36,6 +36,9 @@ namespace io_utils {
 	upCharArr stripCRLF(const char* pCharBuf, size_t inCnt, size_t& strippedCnt);
 	void separateStrings(std::vector<std::string>&vec, const char* pTxt, size_t charCnt);
 
+	byte* byteCopy(byte* pDst, size_t szDst, const byte* pSrc, size_t szSrc);
+	bool byteCompare(const byte* p1, const byte* p2, size_t n);
+
 	void logError(const char* str);
 }
 
@@ -78,6 +81,8 @@ namespace crypto_utils {
 	byte getRandomByte();
 	unsigned int getRandomNumber();
 	void generateKey(byte* pKey, size_t len);
+
+	size_t paddedSize(size_t inpSz, size_t blkSz);
 
 }
 

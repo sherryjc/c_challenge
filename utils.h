@@ -37,6 +37,8 @@ namespace io_utils {
 	void separateStrings(std::vector<std::string>&vec, const char* pTxt, size_t charCnt);
 
 	byte* byteCopy(byte* pDst, size_t szDst, const byte* pSrc, size_t szSrc);
+	byte* byteCopyRepeated(byte* pDst, size_t szDst, const char c, size_t szSrc);
+
 	bool byteCompare(const byte* p1, const byte* p2, size_t n);
 
 	void logError(const char* str);

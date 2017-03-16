@@ -7,6 +7,7 @@
 #include "utils.h"
 
 using namespace crypto_utils;
+using namespace io_utils;
 
 
 
@@ -34,6 +35,85 @@ const std::string Backend::EncryptionOracle_2_11(const char* pInput, size_t len)
 	const byte* pResult = aes.Result(outLen);
 	return reinterpret_cast<const char*>(pResult);
 }
+
+// ------------------------ //
+// Set 2 Challenge 12       //
+// ------------------------ //
+
+static std::unique_ptr<byte[]> ModifyInput_2_12(const byte* pInput, size_t inputLen, size_t blkSize, size_t& resultSz)
+{
+	// This is the plain text appended by the oracle prior to encryption
+	static const char* pFilename = "./data/set2/challenge12/Append.b64";
+
+	size_t base64Cnt = 0;
+	std::unique_ptr<char[]>pBase64Buf = readTextFileStripCRLF(pFilename, base64Cnt);
+	if (!pBase64Buf || !pBase64Buf.get() || base64Cnt == 0) {
+		return nullptr;
+	}
+
+	size_t binCnt = 0;
+	// No block size arg in the next call, do not apply padding yet
+	std::unique_ptr<byte[]> pFileBytes = std::move(base64ToBin(pBase64Buf.get(), base64Cnt, binCnt));
+
+	// Compute padding now that we have all the input
+	size_t unpaddedInputSize = inputLen + binCnt;
+	size_t paddedCnt = paddedSize(unpaddedInputSize, blkSize);
+	std::unique_ptr<byte[]> pOutput(new byte[paddedCnt + 1]);
+	byte* pOut = pOutput.get();
+	size_t remaining = paddedCnt + 1;  // Remaining bytes in destination buffer
+	byteCopy(pOut, remaining, reinterpret_cast<const byte*>(pInput), inputLen);
+	remaining -= inputLen;
+	pOut += inputLen;
+	byteCopy(pOut, remaining, pFileBytes.get(), binCnt);
+	remaining -= binCnt;
+	pOut += binCnt;
+	size_t nPaddingChars = paddedCnt - unpaddedInputSize;
+	byte padChar = static_cast<byte>(nPaddingChars);  // PKCS_7
+	byteCopyRepeated(pOut, remaining, padChar, nPaddingChars);
+	pOut += nPaddingChars;
+	*pOut = '\0';
+	resultSz = paddedCnt;
+	return pOutput;
+}
+
+static size_t s_nKeySize = 0;
+static byte* s_pKey = nullptr;
+
+std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_12(const byte* pInput, size_t len)
+{
+	// 1. Generate a random key (of the same length as the block size)
+	//    - Do this once and re-use the key
+	// 2. Append bytes read in from base64 file after the plain text
+	// 3. Encrypt using ECB 
+
+
+	Aes aes(128);
+	aes.SetMode(Aes::ECB);
+
+	// Generate the key the first time we are called in this session and stash it
+	if (s_nKeySize == 0 || nullptr == s_pKey) {
+		aes.SetKey(aes.BlockSize());
+		s_nKeySize = aes.KeySize();
+		s_pKey = new byte[s_nKeySize]{ 0 };
+		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
+	}
+	else {
+		// Re-use the key we already generated
+		aes.SetKey(s_pKey, s_nKeySize);
+	}
+
+	size_t byteCnt = 0;
+	std::unique_ptr<byte[]> pBytes = ModifyInput_2_12(pInput, len, aes.BlockSize(), byteCnt);
+	aes.SetInput(pBytes.get(), byteCnt, false);  // false: we padded already
+	aes.InitOutput();
+	aes.Encrypt();
+	size_t outLen = 0;
+	const byte* pRes = aes.Result(outLen);
+	std::unique_ptr<byte[]> pResult(new byte[outLen]);
+	byteCopy(pResult.get(), outLen, pRes, outLen);
+	return pResult;
+}
+
 
 // ------------------------ //
 // Set 2 Challenge 13       //
@@ -71,6 +151,9 @@ static bool ValidKeyChar(char c)
 
 static bool ValidValChar(char c)
 {
+	if (c < 0) {
+		return false;
+	}
 	return (isalpha(c) || isdigit(c) || c == '@' || c == '.');
 }
 
@@ -243,15 +326,58 @@ std::string Backend::Oracle_2_13(const std::string& emailAddr)
 	if (encodedProfile.length() == 0) {
 		return "";
 	}
+
 	Aes aes(128);
-	std::string resultStr;
-	return resultStr;
+	// Generate the key the first time we are called in this session and stash it
+	if (s_nKeySize == 0 || nullptr == s_pKey) {
+		aes.SetKey(aes.BlockSize());
+		s_nKeySize = aes.KeySize();
+		s_pKey = new byte[s_nKeySize]{ 0 };
+		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
+	}
+	else {
+		// Re-use the key we already generated
+		aes.SetKey(s_pKey, s_nKeySize);
+	}
+	aes.SetMode(Aes::ECB);
+	aes.SetInput(encodedProfile, true);
+	aes.Encrypt();
+
+	size_t outLen = 0;
+	const byte* pResult = aes.Result(outLen);
+	return reinterpret_cast<const char*>(pResult);
 }
 
-void Backend::Add_User_2_13(const std::string& encryptedRec)
+bool Backend::Add_User_2_13(const std::string& encryptedRec)
 {
 	// Decrypt the input
 	// Parse the plaintext and add a user to the Db if valid
 	// Print out the change to the db
 
+	bool bUserAdded = false;
+
+	if (s_nKeySize == 0) {
+		std::cout << "Session key not found!!" << std::endl;
+		return bUserAdded;
+	}
+
+	Aes aes(128);
+	aes.SetKey(s_pKey, s_nKeySize);
+	aes.SetInput(encryptedRec);
+	aes.Decrypt();
+
+	size_t outLen = 0;
+	const byte* pResult = aes.Result(outLen);
+	std::string profileStr = reinterpret_cast<const char*>(pResult);
+
+	if (profileStr.length() > 0) {
+		
+		bUserAdded = ParseDbRec(profileStr);
+	}
+
+	if (bUserAdded) {
+		DumpUserDb(bUserAdded);
+	}
+
+	return bUserAdded;
 }

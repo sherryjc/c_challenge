@@ -21,10 +21,15 @@ public:
 	size_t Read(const char* pFilename, FileType fType);
 	size_t Write(const char* pFilename, FileType fType);
 
+	void SetInput(const byte* pInp, size_t len, bool bPad=false);  // Don't want to pad when setting ciphertext input, for example
+	void SetInput(const std::string& s, bool bPad=false);
+
 	// Set key to known value
 	void SetKey(const byte* pKey, const size_t keyLen);
 	// Set key to randomly generated value
 	void SetKey(const size_t keyLen);
+	size_t KeySize() const;
+	const byte* Key() const;
 
 	void SetMode(int mode);
 	int Mode() const;
@@ -35,8 +40,8 @@ public:
 	const byte* Result(size_t& len);
 
 	int DetectMode(const byte* pCipherTxt, size_t len);
-
-	void EncryptionOracle_2_12(const byte* pInput, size_t len, const char* pFilename);
+	
+	void UnPadResult();
 
 
 private:
@@ -78,11 +83,8 @@ private:
 	static void MxVec4(byte* v);
 	static void MIxVec4(byte* v);
 	
-	// Modifies input according to internal rules for the
-	// "specific exercise" functions above ... move these to backend, or somewhere
 public:
-	void ModifyInput1(const char* pInput, size_t inputLen);	
-	void ModifyInput_2_12(const byte* pInput, size_t inputLen, const char* pFilename);
+	void ModifyInput1(const char* pInput, size_t inputLen);	 // TODO - move to backend
 
 private:
 // data members

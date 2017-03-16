@@ -102,8 +102,6 @@ static void _setInput212a(byte* pTxt, size_t nPrepend, byte* pResultsBuf, size_t
 
 bool Challenges::Set2Ch12()
 {
-	// This is the plain text encrypted by the encryption oracle
-	static const char* pFilename = "./data/set2/challenge12/Append.b64";
 
 	// Discover block size of cipher being used by the Oracle
 	static const size_t kMaxBlockSz = 32;
@@ -113,22 +111,18 @@ bool Challenges::Set2Ch12()
 	size_t resultSz = 0;
 	size_t nDetectedBlkSz = 0;
 	int eDetectedMode = Aes::AES_UNKNOWN;
-
-	std::unique_ptr<byte[]> pLastResult = nullptr;
 	std::unique_ptr<byte[]> pCurrResult = nullptr;
+	std::unique_ptr<byte[]> pLastResult = nullptr;
+
+	Aes aes(128);  // used for DetectMode calls
 
 	for (size_t i = 1; i < kMaxBlockSz; ++i) {
 
 		_setInput212(txtBuf, i);
 
-		Aes aes(128);
-		aes.EncryptionOracle_2_12(txtBuf, i, pFilename);
-		const byte* pResult = aes.Result(resultSz);
-		pCurrResult.reset(new byte[resultSz]);
-		byteCopy(pCurrResult.get(), resultSz, pResult, resultSz);
+		pCurrResult = Backend::EncryptionOracle_2_12(txtBuf, i);
 		if (byteCompare(pCurrResult.get(), pLastResult.get(), i - 1)) {
 			nDetectedBlkSz = i - 1;
-			eDetectedMode = aes.DetectMode(pResult, resultSz);
 			break;
 		}
 		pLastResult = std::move(pCurrResult);
@@ -137,8 +131,8 @@ bool Challenges::Set2Ch12()
 
 	std::cout << std::endl << "Block size " << nDetectedBlkSz << " detected" << std::endl;
 
-	// We detected the AES mode in use above - but using different input
-	// This needs to be redone. 
+	// Detect the AES mode 
+	// TODO
 	static const char* pOutTxt = (eDetectedMode == Aes::ECB) ? "ECB " : "UNKNOWN";
 	std::cout << "Detected Mode: " << pOutTxt << std::endl;
 
@@ -156,26 +150,21 @@ bool Challenges::Set2Ch12()
 			byte bVal = static_cast<byte>(bv);
 			txtBuf[nDetectedBlkSz - 1] = bVal;
 			txtBuf[nDetectedBlkSz] = '\0';
-			Aes aes(128);
-			aes.EncryptionOracle_2_12(txtBuf, nDetectedBlkSz, pFilename);
-			const byte* pResult = aes.Result(resultSz);
-			byte* pTruncate = const_cast<byte *>(pResult);
-			pTruncate[nDetectedBlkSz] = '\0';
-			std::string s = reinterpret_cast<const char *>(pTruncate);
-			std::pair<std::string, byte>entry(s, bVal);
+			std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(txtBuf, nDetectedBlkSz);
+			// Truncate the output to the block size
+			std::string sResult = reinterpret_cast<char*>(pResult.get());
+			std::string sTrunc(sResult, 0, nDetectedBlkSz);
+			std::pair<std::string, byte>entry(sTrunc, bVal);
 			dictionary.insert(entry);
 		}
 
 		// Now get the output for the short input (just the remaining leading chars)
 		txtBuf[nLeadingChars] = '\0';
-		Aes aes(128);
-		aes.EncryptionOracle_2_12(txtBuf, nLeadingChars, pFilename);
+		std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(txtBuf, nLeadingChars);
 		// Find the resulting cipher text in our dictionary
-		const byte* pResult = aes.Result(resultSz);
-		byte* pTruncate = const_cast<byte *>(pResult);
-		pTruncate[nDetectedBlkSz] = '\0';
-		std::string s = reinterpret_cast<const char *>(pTruncate);
-		std::unordered_map<std::string, byte>::const_iterator fnd = dictionary.find(s);
+		std::string sResult = reinterpret_cast<char*>(pResult.get());
+		std::string sTrunc(sResult, 0, nDetectedBlkSz);
+		std::unordered_map<std::string, byte>::const_iterator fnd = dictionary.find(sTrunc);
 		if (fnd != dictionary.end()) {
 			resultBuf[resultIdx++] = fnd->second;
 		}
@@ -197,7 +186,7 @@ bool Challenges::Set2Ch12()
 bool Challenges::Set2Ch13()
 {
 
-	std::string emailAddr = "MyText";
+	std::string emailAddr = "Jack@beanstalk.com";
 	std::string encryptedText = Backend::Oracle_2_13(emailAddr);
 	Backend::Add_User_2_13(encryptedText);
 

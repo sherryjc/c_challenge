@@ -197,6 +197,20 @@ byte* io_utils::byteCopy(byte* pDst, size_t szDst, const byte* pSrc, size_t szSr
 	return pRet;
 }
 
+// This variant is useful for adding padding bytes (all of the same value)
+byte* io_utils::byteCopyRepeated(byte* pDst, size_t szDst, const char c, size_t szSrc)
+{
+	if (szSrc > szDst) {
+		return nullptr;
+	}
+	byte* pRet = pDst;
+	for (size_t i = 0; i < szSrc; ++i) {
+		*pDst++ = c;
+	}
+	return pRet;
+
+}
+
 bool io_utils::byteCompare(const byte* p1, const byte* p2, size_t n)
 {
 	if (!p1 || !p2 || n == 0) {
@@ -210,6 +224,7 @@ bool io_utils::byteCompare(const byte* p1, const byte* p2, size_t n)
 	}
 	return true;
 }
+
 void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt)
 {
 	std::cout << std::endl << "DEBUG: ";

@@ -304,6 +304,39 @@ void Aes::SetKey(const size_t keyLen)
 	ExpandKey();
 }
 
+const byte* Aes::Key() const
+{
+	return m_pKey.get();
+}
+
+size_t Aes::KeySize() const
+{
+	return m_nKeySize;
+}
+
+
+void Aes::SetInput(const byte* pInp, size_t len, bool bPad)
+{
+	m_nInputSize = bPad ? paddedSize(len, m_nBlockSize) : len;
+	m_pInput.reset(new byte[m_nInputSize+1]);
+	byte* pInput = m_pInput.get();
+	byteCopy(pInput, m_nInputSize+1, pInp, len);
+	pInput += len;
+	if (m_nInputSize > len) {
+		size_t nPaddingChars = m_nInputSize - len;
+		byte padChar = static_cast<byte>(nPaddingChars);  // PKCS_7  -- TODO make this configurable
+		byteCopyRepeated(pInput, nPaddingChars+1, padChar, nPaddingChars);
+		pInput += nPaddingChars;
+	}
+	*pInput = '\0';
+
+}
+
+void Aes::SetInput(const std::string& s, bool bPad)
+{
+	SetInput(reinterpret_cast<const byte*>(s.c_str()), s.length(), bPad);
+}
+
 void Aes::Encrypt()
 {
 	byte* pState = m_pOutput.get();
@@ -334,6 +367,10 @@ void Aes::Decrypt()
 {
 	// 128-bit ECB mode
 	byte* pState = m_pOutput.get();
+	if (!pState) {
+		InitOutput(m_nInputSize);
+		pState = m_pOutput.get();
+	}
 	byte* pInput = m_pInput.get();
 	size_t inputIdx = 0;
 	byte* pPrevDecBlock = m_pInitVec.get();
@@ -713,54 +750,9 @@ int Aes::DetectMode(const byte* pCipherTxt, size_t len)
 	return res >= m_nBlockSize ? Aes::ECB : Aes::CBC;
 }
 
-void Aes::ModifyInput_2_12(const byte* pInput, size_t inputLen, const char* pFilename)
+void Aes::UnPadResult()
 {
-	size_t base64Cnt = 0;
-	std::unique_ptr<char[]>pBase64Buf = readTextFileStripCRLF(pFilename, base64Cnt);
-	if (!pBase64Buf || !pBase64Buf.get() || base64Cnt == 0) {
-		return;
-	}
+	// Detect any padding characters and remove them
 
-	size_t binCnt = 0;
-	// No block size in the next call, do not apply padding yet
-	std::unique_ptr<byte[]> pFileBytes = std::move(base64ToBin(pBase64Buf.get(), base64Cnt, binCnt));
-
-	// 
-	m_nInputSize = inputLen + binCnt;
-	size_t paddedCnt = paddedSize(m_nInputSize, m_nBlockSize);
-	m_pInput.reset(new byte[paddedCnt + 1]);
-	byte* pInp = m_pInput.get();
-	byteCopy(pInp, paddedCnt + 1, reinterpret_cast<const byte*>(pInput), inputLen);
-	byteCopy(pInp + inputLen, paddedCnt + 1 - inputLen, pFileBytes.get(), binCnt);
-	pInp[paddedCnt] = '\0';
-}
-
-static size_t s_nKeySize = 0;
-static byte* s_pKey = nullptr;
-
-void Aes::EncryptionOracle_2_12(const byte* pInput, size_t len, const char* pFilename)
-{
-	// 1. Generate a random key (of the same length as the block size)
-	//    - Do this once and re-use the key
-	// 2. Append bytes read in from base64 file after the plain text
-	// 3. Encrypt using ECB 
-
-	// Generate the key the first time we are called in this session and stash it
-	if (s_nKeySize == 0 || nullptr == s_pKey) {
-		SetKey(m_nBlockSize);
-		s_nKeySize = m_nKeySize;
-		s_pKey = m_pKey.get();
-	}
-	else {
-		// Re-use the key we already generated
-		SetKey(s_pKey, s_nKeySize);
-	}
-
-	ModifyInput_2_12(pInput, len, pFilename);
-
-	InitOutput(m_nInputSize);
-
-	SetMode(Aes::ECB);
-	Encrypt();
 }
 

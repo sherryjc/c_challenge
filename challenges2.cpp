@@ -106,7 +106,6 @@ bool Challenges::Set2Ch12()
 	// Discover block size of cipher being used by the Oracle
 	static const size_t kMaxBlockSz = 32;
 	byte txtBuf[kMaxBlockSz + 1]{ 0 };
-	byte resultBuf[kMaxBlockSz + 1]{ 0 };
 	size_t resultIdx = 0;
 	size_t resultSz = 0;
 	size_t nDetectedBlkSz = 0;
@@ -131,51 +130,67 @@ bool Challenges::Set2Ch12()
 
 	std::cout << std::endl << "Block size " << nDetectedBlkSz << " detected" << std::endl;
 
-	// Detect the AES mode 
-	// TODO
+	// Detect which AES mode 
+	// TODO (same as previous challenge)
 	static const char* pOutTxt = (eDetectedMode == Aes::ECB) ? "ECB " : "UNKNOWN";
 	std::cout << "Detected Mode: " << pOutTxt << std::endl;
 
-	// Get one block's worth of the Oracle's internal text
-	for (size_t offset = 1; offset <= nDetectedBlkSz; ++offset) {
-		// Number of 'A' chars to prepend == nDetectedBlkSz - offset (one less each time through the loop)
-		size_t nLeadingChars = nDetectedBlkSz - offset;
-		// Number of results characters (plaintext we've already figured out) == resultIdx
-		_setInput212a(txtBuf, nLeadingChars, resultBuf, resultIdx);
+	// TODO: Figure out how many encrypted characters the oracle returned
+	// E.g. See how many characters come back without any prefix
+	// pCurrResult = Backend::EncryptionOracle_2_12(txtBuf, 0);
+	// For now just hard-code the number of blocks to figure out:
+	size_t nBlocksReturned = 3;
+	size_t nCharsToDecrypt = nBlocksReturned * nDetectedBlkSz;
+	size_t nStartIdxWorkingBlk = (nBlocksReturned - 1)*nDetectedBlkSz;
+	std::unique_ptr<byte[]> spResultBuf(new byte[nCharsToDecrypt + 1]);
+	byte* pResultBuf = spResultBuf.get();
+	SecureZeroMemory(pResultBuf, nCharsToDecrypt+1);
+	std::unique_ptr<byte[]> spPrependBuf(new byte[nCharsToDecrypt + 1]);
+	byte* pPrependBuf = spPrependBuf.get();
+	SecureZeroMemory(pPrependBuf, nCharsToDecrypt+1);
+
+
+	// Get "nBlocksReturned" blocks of the Oracle's internal text
+	for (size_t offset = 1; offset <= nCharsToDecrypt; ++offset) {
+		// Number of 'A' chars to prepend == nCharsToDecrypt - offset (one less each time through the loop)
+		size_t nLeadingChars = nCharsToDecrypt - offset;
+
+		// Number of results characters (plain-text we've already figured out) == resultIdx
+		_setInput212a(pPrependBuf, nLeadingChars, pResultBuf, resultIdx);
 
 		// Create the dictionary for the current leading {block-1} chars plus all possible 
 		// values for the last byte position in the block
-		std::unordered_map<std::string, byte> dictionary;
+		std::unordered_map<byte_string, byte> dictionary;
 		for (int bv = 0; bv <= 0xff; ++bv) {
 			byte bVal = static_cast<byte>(bv);
-			txtBuf[nDetectedBlkSz - 1] = bVal;
-			txtBuf[nDetectedBlkSz] = '\0';
-			std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(txtBuf, nDetectedBlkSz);
-			// Truncate the output to the block size
-			std::string sResult = reinterpret_cast<char*>(pResult.get());
-			std::string sTrunc(sResult, 0, nDetectedBlkSz);
-			std::pair<std::string, byte>entry(sTrunc, bVal);
+			pPrependBuf[nCharsToDecrypt - 1] = bVal;
+			pPrependBuf[nCharsToDecrypt] = '\0';
+			std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(pPrependBuf, nCharsToDecrypt);
+			byte_string sResult(pResult.get(), nCharsToDecrypt);
+			// We can restrict the dictionary entry to the block of output currently being worked on.
+			byte_string sTrunc(sResult, nStartIdxWorkingBlk, nDetectedBlkSz);
+			std::pair<byte_string, byte>entry(sTrunc, bVal);
 			dictionary.insert(entry);
 		}
 
 		// Now get the output for the short input (just the remaining leading chars)
-		txtBuf[nLeadingChars] = '\0';
-		std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(txtBuf, nLeadingChars);
+		pPrependBuf[nLeadingChars] = '\0';
+		std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(pPrependBuf, nLeadingChars);
 		// Find the resulting cipher text in our dictionary
-		std::string sResult = reinterpret_cast<char*>(pResult.get());
-		std::string sTrunc(sResult, 0, nDetectedBlkSz);
-		std::unordered_map<std::string, byte>::const_iterator fnd = dictionary.find(sTrunc);
+		byte_string sResult(pResult.get(), nCharsToDecrypt);
+		byte_string sTrunc(sResult, nStartIdxWorkingBlk, nDetectedBlkSz);
+		std::unordered_map<byte_string, byte>::const_iterator fnd = dictionary.find(sTrunc);
 		if (fnd != dictionary.end()) {
-			resultBuf[resultIdx++] = fnd->second;
+			pResultBuf[resultIdx++] = fnd->second;
 		}
 		else {
-			std::cout << "Problem - returned cipher text not found in dictionary!" << std::endl;
-			return false;
+			//std::cout << "Problem - returned cipher text not found in dictionary!" << std::endl;
+			pResultBuf[resultIdx++] = '?';
 		}
 
 	}
 
-	std::cout << "First block of text: " << std::endl << resultBuf << std::endl;
+	std::cout << "First " << nBlocksReturned << " blocks of text: " << std::endl << pResultBuf << std::endl;
 
 	return true;
 

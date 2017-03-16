@@ -4,7 +4,10 @@
 
 #include "stdafx.h"
 
-typedef unsigned char byte;
+using byte = unsigned char;
+using byte_string = std::basic_string<byte>;
+
+//typedef unsigned char byte;
 typedef int word4;    // assuming sizeof(int) = 4; handle this 
 
 typedef enum  {

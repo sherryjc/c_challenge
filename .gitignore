@@ -5,6 +5,29 @@ cryptopals.sdf
 *.o
 *.exe
 .klocwork
+data/set1/challenge7/AES_shortTest.bin
+data/set1/challenge7/AES_shortTest2.bin
+data/set1/challenge7/AES_shortTest2_B64.txt
+data/set1/challenge7/AES_shortTest2_Old.bin
+data/set1/challenge7/AES_shortTestDec.bin
+data/set1/challenge7/AES_shortTestDec2.bin
+data/set1/challenge7/AES_shortTest_B64.txt
+data/set1/challenge7/AES_test.bin
+data/set1/challenge7/AES_test_B64.txt
+data/set1/challenge7/Simple1.bin
+data/set1/challenge7/Simple1.txt
+data/set1/challenge7/Simple1Dec.bin
+data/set1/challenge7/decrypted.bin
+data/set1/challenge7/decrypted.txt
+data/set1/challenge7/decrypted2.bin
+data/set1/challenge7/decryptedHex.txt
+data/set1/challenge7/encryptedHex.txt
+data/set1/challenge7/test_input.txt
+data/set1/challenge7/test_input_dec.bin
+data/set1/challenge7/test_input_dec.txt
+data/set1/challenge7/test_input_enc.bin
+data/set2/challenge10/decrypted.txt
+
 
 
 

@@ -22,6 +22,7 @@ public:
 	size_t Write(const char* pFilename, FileType fType);
 
 	void SetInput(const byte* pInp, size_t len, bool bPad=false);  // Don't want to pad when setting ciphertext input, for example
+	void SetInput(const byte_string& s, bool bPad=false);
 	void SetInput(const std::string& s, bool bPad=false);
 
 	// Set key to known value

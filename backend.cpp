@@ -216,6 +216,7 @@ static bool ParseDbRec(const std::string& str)
 
 
 	int state = 0;
+	size_t dbStartSize = s_UserDb.size();
 	static const size_t kMAXLEN = 256;
 	size_t inputLen = str.length();
 	if (inputLen > kMAXLEN) {
@@ -291,7 +292,7 @@ static bool ParseDbRec(const std::string& str)
 		state = 0;
 	}
 
-	return state == 0;
+	return s_UserDb.size() > dbStartSize;
 
 }
 
@@ -317,14 +318,15 @@ static std::string EncodeProfile(const std::string& emailAddr, const std::string
 }
 
 
-std::string Backend::Oracle_2_13(const std::string& emailAddr)
+byte_string Backend::EncryptionOracle_2_13(const std::string& emailAddr)
 {
 	// Given an "email address", returns the encrypted encoding string for the user entry
 	std::string uid("100");
 	std::string user("user");
 	std::string encodedProfile = EncodeProfile(emailAddr, uid, user);
+	static const byte_string emptyByteStr;
 	if (encodedProfile.length() == 0) {
-		return "";
+		return emptyByteStr;
 	}
 
 	Aes aes(128);
@@ -345,10 +347,11 @@ std::string Backend::Oracle_2_13(const std::string& emailAddr)
 
 	size_t outLen = 0;
 	const byte* pResult = aes.Result(outLen);
-	return reinterpret_cast<const char*>(pResult);
+	byte_string sRet(pResult, outLen);
+	return sRet;
 }
 
-bool Backend::Add_User_2_13(const std::string& encryptedRec)
+bool Backend::Add_User_2_13(const byte_string& encryptedRec)
 {
 	// Decrypt the input
 	// Parse the plaintext and add a user to the Db if valid
@@ -370,8 +373,8 @@ bool Backend::Add_User_2_13(const std::string& encryptedRec)
 	const byte* pResult = aes.Result(outLen);
 	std::string profileStr = reinterpret_cast<const char*>(pResult);
 
+
 	if (profileStr.length() > 0) {
-		
 		bUserAdded = ParseDbRec(profileStr);
 	}
 

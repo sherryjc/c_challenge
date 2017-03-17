@@ -196,14 +196,86 @@ bool Challenges::Set2Ch12()
 
 }
 
+static void _setInput213(std::string& tstAddr, size_t sz)
+{
+	tstAddr = "a@";
 
+	for (size_t j = 2; j < sz; ++j) {
+		tstAddr += 'B';
+	}
+}
+
+static void _setInput213a(std::string& prependStr, size_t nLeadingChars, const std::string& resultStr)
+{
+	_setInput213(prependStr, nLeadingChars);
+	prependStr += resultStr;
+}
 
 bool Challenges::Set2Ch13()
 {
 
-	std::string emailAddr = "Jack@beanstalk.com";
-	std::string encryptedText = Backend::Oracle_2_13(emailAddr);
-	Backend::Add_User_2_13(encryptedText);
+	static const size_t kMaxBlockSz = 32;
+	size_t nDetectedBlkBoundary = 0;
+	byte_string lastResult;
+	byte_string currResult;
+
+	for (size_t i = 3; i < kMaxBlockSz; ++i) {
+
+		std::string testStr;
+		_setInput213(testStr, i);
+		currResult = Backend::EncryptionOracle_2_13(testStr);
+
+		if (byteCompare(currResult.c_str(), lastResult.c_str(), i - 1)) {
+			nDetectedBlkBoundary = i - 1;  // -1: lastResult was the end of a block
+			break;
+		}
+		lastResult = currResult;
+	}
+
+	std::cout << std::endl << "Block boundary detected for email address of length: " << nDetectedBlkBoundary << std::endl;
+
+
+	// Now determine full block size by seeing how many encrypted characters the last two results have in common
+	size_t nCurrBytes = currResult.length();
+	size_t nLastBytes = lastResult.length();
+	size_t nBlockSize = nBytesCompare(currResult.c_str(), lastResult.c_str(), nLastBytes < nCurrBytes ? nLastBytes : nCurrBytes);
+
+	std::cout << "Block size detected: " << nBlockSize << std::endl;
+	std::cout << "Number of bytes returned for " << nDetectedBlkBoundary << "-character email address: " << nLastBytes << std::endl;
+
+	// The approach of Set2Ch12 won't work to read the input because characters we want to get the
+	// encryption for (e.g. '&', '=') will not be allowed by the oracle encoding.
+
+	// Figure out how much padding is in the last block
+	size_t paddingBytes = 0;
+	for (size_t i = nDetectedBlkBoundary+1; i < nDetectedBlkBoundary + nBlockSize + 1; ++i) {
+		std::string testStr;
+		_setInput213(testStr, i);
+		currResult = Backend::EncryptionOracle_2_13(testStr);
+		size_t testLen = currResult.length();
+		if (currResult.length() > nLastBytes) {
+			break;
+		}
+		++paddingBytes;
+	}
+
+	std::cout << "Padding bytes in last block: " << paddingBytes << std::endl;
+
+	// Take blocks 1 and 2 from the result for this input
+	std::string testStr1 = "bob@evil.com";
+	byte_string  strResult1 = Backend::EncryptionOracle_2_13(testStr1);
+
+	// Take block 3 from the result for this input
+	std::string testStr2 = "a@abcdefghijklmnopqrstuvwxadmin";
+	byte_string  strResult2 = Backend::EncryptionOracle_2_13(testStr2);
+	
+	size_t b2 = 2 * nBlockSize;
+	byte_string forgedDesc(strResult1, 0, b2);
+	forgedDesc += strResult2.substr(b2, nBlockSize);
+	Backend::Add_User_2_13(forgedDesc);
 
 	return true;
+
 }
+
+

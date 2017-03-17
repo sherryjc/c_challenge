@@ -225,6 +225,22 @@ bool io_utils::byteCompare(const byte* p1, const byte* p2, size_t n)
 	return true;
 }
 
+size_t io_utils::nBytesCompare(const byte* p1, const byte* p2, size_t nMax)
+{
+	if (!p1 || !p2 || nMax == 0) {
+		return 0;
+	}
+	size_t retVal = 0;
+
+	for (size_t i = 0; i < nMax; ++i) {
+		if (*p1++ != *p2++) {
+			break;
+		}
+		++retVal;
+	}
+	return retVal;
+}
+
 void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt)
 {
 	std::cout << std::endl << "DEBUG: ";

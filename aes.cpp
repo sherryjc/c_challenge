@@ -332,6 +332,11 @@ void Aes::SetInput(const byte* pInp, size_t len, bool bPad)
 
 }
 
+void Aes::SetInput(const byte_string& s, bool bPad)
+{
+	SetInput(s.c_str(), s.length(), bPad);
+}
+
 void Aes::SetInput(const std::string& s, bool bPad)
 {
 	SetInput(reinterpret_cast<const byte*>(s.c_str()), s.length(), bPad);

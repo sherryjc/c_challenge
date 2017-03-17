@@ -86,6 +86,8 @@ namespace crypto_utils {
 	bool getRandomBool();
 	byte getRandomByte();
 	unsigned int getRandomNumber();
+	byte_string getRandomBytes(const size_t nMaxLen);
+
 	void generateKey(byte* pKey, size_t len);
 
 	size_t paddedSize(size_t inpSz, size_t blkSz);

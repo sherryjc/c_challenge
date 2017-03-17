@@ -16,4 +16,8 @@ namespace Backend {
 	// Set 2, Challenge 13
 	byte_string EncryptionOracle_2_13(const std::string& emailAddr);
 	bool Add_User_2_13(const byte_string& encryptedRec);
+
+	// Set 2, Challenge 14
+	std::unique_ptr< byte[] > EncryptionOracle_2_14(const byte* pInput, size_t len);
+
 }

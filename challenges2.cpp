@@ -135,9 +135,7 @@ bool Challenges::Set2Ch12()
 	static const char* pOutTxt = (eDetectedMode == Aes::ECB) ? "ECB " : "UNKNOWN";
 	std::cout << "Detected Mode: " << pOutTxt << std::endl;
 
-	// TODO: Figure out how many encrypted characters the oracle returned
-	// E.g. See how many characters come back without any prefix
-	// pCurrResult = Backend::EncryptionOracle_2_12(txtBuf, 0);
+	// TODO: Change oracle to return byte count
 	// For now just hard-code the number of blocks to figure out:
 	size_t nBlocksReturned = 3;
 	size_t nCharsToDecrypt = nBlocksReturned * nDetectedBlkSz;
@@ -278,4 +276,12 @@ bool Challenges::Set2Ch13()
 
 }
 
+bool Challenges::Set2Ch14()
+{
+	// Oracle:
+	// Change this (and 2_12) to supply return byte count
+	// std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, size_t len)
+
+	return true;
+}
 

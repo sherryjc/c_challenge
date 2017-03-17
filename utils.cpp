@@ -845,6 +845,20 @@ void crypto_utils::generateKey(byte* pKey, size_t len)
 	}
 }
 
+byte_string crypto_utils::getRandomBytes(const size_t nMaxLen)
+{
+	byte_string retStr;
+
+	size_t nBytes = getRandomNumber() % nMaxLen;
+	retStr.reserve(nBytes);
+	for (size_t i = 0; i < nBytes; ++i) {
+		retStr[i] = getRandomByte();
+	}
+
+	return retStr;
+}
+
+
 size_t crypto_utils::paddedSize(size_t inpSz, size_t blkSz)
 {
 	return (blkSz > 0 && inpSz % blkSz) ? (inpSz / blkSz + 1) * blkSz : inpSz;

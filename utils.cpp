@@ -850,9 +850,9 @@ byte_string crypto_utils::getRandomBytes(const size_t nMaxLen)
 	byte_string retStr;
 
 	size_t nBytes = getRandomNumber() % nMaxLen;
-	retStr.reserve(nBytes);
+	retStr.reserve(nBytes+1);
 	for (size_t i = 0; i < nBytes; ++i) {
-		retStr[i] = getRandomByte();
+		retStr += getRandomByte();
 	}
 
 	return retStr;

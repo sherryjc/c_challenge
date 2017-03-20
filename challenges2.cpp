@@ -109,6 +109,7 @@ bool Challenges::Set2Ch12()
 	size_t resultIdx = 0;
 	size_t resultSz = 0;
 	size_t nDetectedBlkSz = 0;
+	size_t nOutLen = 0;
 	int eDetectedMode = Aes::AES_UNKNOWN;
 	std::unique_ptr<byte[]> pCurrResult = nullptr;
 	std::unique_ptr<byte[]> pLastResult = nullptr;
@@ -119,7 +120,7 @@ bool Challenges::Set2Ch12()
 
 		_setInput212(txtBuf, i);
 
-		pCurrResult = Backend::EncryptionOracle_2_12(txtBuf, i);
+		pCurrResult = Backend::EncryptionOracle_2_12(txtBuf, i, nOutLen);
 		if (byteCompare(pCurrResult.get(), pLastResult.get(), i - 1)) {
 			nDetectedBlkSz = i - 1;
 			break;
@@ -135,8 +136,8 @@ bool Challenges::Set2Ch12()
 	static const char* pOutTxt = (eDetectedMode == Aes::ECB) ? "ECB " : "UNKNOWN";
 	std::cout << "Detected Mode: " << pOutTxt << std::endl;
 
-	// TODO: Change oracle to return byte count
 	// For now just hard-code the number of blocks to figure out:
+	// (We read all the blocks correctly in Set2Ch14.)
 	size_t nBlocksReturned = 3;
 	size_t nCharsToDecrypt = nBlocksReturned * nDetectedBlkSz;
 	size_t nStartIdxWorkingBlk = (nBlocksReturned - 1)*nDetectedBlkSz;
@@ -163,7 +164,7 @@ bool Challenges::Set2Ch12()
 			byte bVal = static_cast<byte>(bv);
 			pPrependBuf[nCharsToDecrypt - 1] = bVal;
 			pPrependBuf[nCharsToDecrypt] = '\0';
-			std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(pPrependBuf, nCharsToDecrypt);
+			std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(pPrependBuf, nCharsToDecrypt, nOutLen);
 			byte_string sResult(pResult.get(), nCharsToDecrypt);
 			// We can restrict the dictionary entry to the block of output currently being worked on.
 			byte_string sTrunc(sResult, nStartIdxWorkingBlk, nDetectedBlkSz);
@@ -173,7 +174,7 @@ bool Challenges::Set2Ch12()
 
 		// Now get the output for the short input (just the remaining leading chars)
 		pPrependBuf[nLeadingChars] = '\0';
-		std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(pPrependBuf, nLeadingChars);
+		std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_12(pPrependBuf, nLeadingChars, nOutLen);
 		// Find the resulting cipher text in our dictionary
 		byte_string sResult(pResult.get(), nCharsToDecrypt);
 		byte_string sTrunc(sResult, nStartIdxWorkingBlk, nDetectedBlkSz);
@@ -212,6 +213,11 @@ static void _setInput213a(std::string& prependStr, size_t nLeadingChars, const s
 bool Challenges::Set2Ch13()
 {
 
+	// It's not clear how much of the format of this string is assumed to be known
+	// and how much we are expected to discover:
+	// email=foo@bar.com&uid=10&role=user
+	// A lot of the code here ends up being useful in the next exercise
+
 	static const size_t kMaxBlockSz = 32;
 	size_t nDetectedBlkBoundary = 0;
 	byte_string lastResult;
@@ -234,6 +240,8 @@ bool Challenges::Set2Ch13()
 
 
 	// Now determine full block size by seeing how many encrypted characters the last two results have in common
+	// TODO: this only works if there is less than one full block prepended by the Oracle
+	// (See the next exercise)
 	size_t nCurrBytes = currResult.length();
 	size_t nLastBytes = lastResult.length();
 	size_t nBlockSize = nBytesCompare(currResult.c_str(), lastResult.c_str(), nLastBytes < nCurrBytes ? nLastBytes : nCurrBytes);
@@ -276,11 +284,115 @@ bool Challenges::Set2Ch13()
 
 }
 
+#define _MIN(x,y) x < y ? x : y
+
 bool Challenges::Set2Ch14()
 {
 	// Oracle:
 	// Change this (and 2_12) to supply return byte count
 	// std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, size_t len)
+	static const size_t kMaxBlockSz = 32;
+	size_t nDetectedBlkBoundary = 0;
+	size_t nBlockSize = 0;
+	byte txtBuf[kMaxBlockSz + 1]{ 0 };
+	std::unique_ptr<byte[]> pCurrResult = nullptr;
+	std::unique_ptr<byte[]> pLastResult = nullptr;
+	size_t nCurrBytes = 0;
+
+	// Prime the pump with the 0 and 1 cases
+	_setInput212(txtBuf, 0);
+	size_t nZeroInpBytesRet = 0; // How many bytes are returned when we supply no input?
+	pLastResult = Backend::EncryptionOracle_2_14(txtBuf, 0, nZeroInpBytesRet);
+
+	_setInput212(txtBuf, 1);
+	pCurrResult = Backend::EncryptionOracle_2_14(txtBuf, 1, nCurrBytes);
+	size_t nLastMatchAtStart = nBytesCompare(pCurrResult.get(), pLastResult.get(), _MIN(nZeroInpBytesRet, nCurrBytes));
+	// if nLastMatchAtStart > 0, it is a multiple of the block size
+	size_t nIgnoreInFullBlocksAtStart = nLastMatchAtStart;
+	std::cout << std::endl << "Characters returned for zero-length input: " << nZeroInpBytesRet << std::endl;
+	std::cout << "Characters found in complete block(s) prior to our input: " << nIgnoreInFullBlocksAtStart << std::endl;
+	pLastResult = std::move(pCurrResult);
+	size_t nLastBytes = nCurrBytes;
+
+	for (size_t i = 2; i < kMaxBlockSz; ++i) {
+
+		_setInput212(txtBuf, i);
+		nCurrBytes = 0;
+		pCurrResult = Backend::EncryptionOracle_2_14(txtBuf, i, nCurrBytes);
+
+		size_t nCurrMatchAtStart = nBytesCompare(pCurrResult.get(), pLastResult.get(), _MIN(nLastBytes, nCurrBytes));
+
+		if (nCurrMatchAtStart > nLastMatchAtStart) {
+			nDetectedBlkBoundary = i - 1;
+			nBlockSize = nCurrMatchAtStart - nLastMatchAtStart;
+			break;
+			
+		}
+		pLastResult = std::move(pCurrResult);
+		nLastBytes = nCurrBytes;
+		nLastMatchAtStart = nCurrMatchAtStart;
+	}
+
+	std::cout << "Block boundary detected for input string of length: " << nDetectedBlkBoundary << std::endl;
+	std::cout << "Block size detected: " << nBlockSize << std::endl;
+	std::cout << "Number of bytes returned for " << nDetectedBlkBoundary << "-character input: " << nLastBytes << std::endl;
+	size_t nCharsToDecrypt = nLastBytes - nIgnoreInFullBlocksAtStart + nDetectedBlkBoundary - nBlockSize;
+	std::cout << "Number of characters to decrypt: " << nCharsToDecrypt << std::endl;
+
+	std::unique_ptr<byte[]> spResultBuf(new byte[nCharsToDecrypt + 1]);
+	byte* pResultBuf = spResultBuf.get();
+	SecureZeroMemory(pResultBuf, nCharsToDecrypt + 1);
+	std::unique_ptr<byte[]> spPrependBuf(new byte[nCharsToDecrypt + 1]);
+	byte* pPrependBuf = spPrependBuf.get();
+	SecureZeroMemory(pPrependBuf, nCharsToDecrypt + 1);
+	size_t resultIdx = 0;
+	size_t nOutLen = 0;
+
+	// The "working block" - the block that goes into the dictionary, is always at the same offset from the start of any returned byte string.
+	// Target input gets shifted into that block as we reduce the size of our input.
+	size_t nStartIdxWorkingBlk = ((nLastBytes / nBlockSize) - 1)*nBlockSize;
+
+	std::cout << std::endl << "Decrypting character:" << std::endl;
+	// Get nCharsToDecrypt of the Oracle's internal text
+	for (size_t offset = 1; offset <= nCharsToDecrypt; ++offset) {
+
+		std::cout << "\r" << offset;
+		// Number of known ('A') chars to prepend == nCharsToDecrypt - offset (one less each time through the loop)
+		size_t nLeadingChars = nCharsToDecrypt - offset;
+
+		// Number of results characters (plain-text we've already figured out) == resultIdx
+		_setInput212a(pPrependBuf, nLeadingChars, pResultBuf, resultIdx);
+
+		// Create the dictionary for the current leading {block-1} chars plus all possible 
+		// values for the last byte position in the block
+		std::unordered_map<byte_string, byte> dictionary;
+		for (int bv = 0; bv <= 0xff; ++bv) {
+			byte bVal = static_cast<byte>(bv);
+			pPrependBuf[nCharsToDecrypt - 1] = bVal;
+			pPrependBuf[nCharsToDecrypt] = '\0';
+			std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_14(pPrependBuf, nCharsToDecrypt, nOutLen);
+			// We can restrict the dictionary entry to the block of output currently being decrypted.
+			byte_string sResult(pResult.get() + nStartIdxWorkingBlk, nBlockSize);
+			std::pair<byte_string, byte>entry(sResult, bVal);
+			dictionary.insert(entry);
+		}
+
+		// Now get the output for the short input (just the remaining leading chars)
+		pPrependBuf[nLeadingChars] = '\0';
+		std::unique_ptr<byte[]> pResult = Backend::EncryptionOracle_2_14(pPrependBuf, nLeadingChars, nOutLen);
+		// Find the resulting cipher text in our dictionary
+		byte_string sResult(pResult.get() + nStartIdxWorkingBlk, nBlockSize);
+		std::unordered_map<byte_string, byte>::const_iterator fnd = dictionary.find(sResult);
+		if (fnd != dictionary.end()) {
+			pResultBuf[resultIdx++] = fnd->second;
+		}
+		else {
+			//std::cout << "Problem - returned cipher text not found in dictionary!" << std::endl;
+			pResultBuf[resultIdx++] = '?';
+		}
+	}
+
+	std::cout << std::endl << std::endl << nCharsToDecrypt << " bytes of text read: " << std::endl << pResultBuf << std::endl;
 
 	return true;
 }

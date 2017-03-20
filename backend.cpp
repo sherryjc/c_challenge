@@ -79,7 +79,7 @@ static std::unique_ptr<byte[]> ModifyInput_2_12(const byte* pInput, size_t input
 static size_t s_nKeySize = 0;
 static byte* s_pKey = nullptr;
 
-std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_12(const byte* pInput, size_t len)
+std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_12(const byte* pInput, size_t len, size_t& outLen)
 {
 	// 1. Generate a random key (of the same length as the block size)
 	//    - Do this once and re-use the key
@@ -107,7 +107,7 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_12(const byte* pInput, si
 	aes.SetInput(pBytes.get(), byteCnt, false);  // false: we padded already
 	aes.InitOutput();
 	aes.Encrypt();
-	size_t outLen = 0;
+	outLen = 0;
 	const byte* pRes = aes.Result(outLen);
 	std::unique_ptr<byte[]> pResult(new byte[outLen]);
 	byteCopy(pResult.get(), outLen, pRes, outLen);
@@ -389,14 +389,15 @@ bool Backend::Add_User_2_13(const byte_string& encryptedRec)
 // Set 2 Challenge 14       //
 // ------------------------ //
 
-std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, size_t len)
+std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, size_t len, size_t& outLen)
 {
 	// Like 2_12 with an additional wrinkle
 	// 1. Generate a random key (of the same length as the block size)
 	//    - Do this once and re-use the key
 	// 2. Generate a random count of random bytes and prepend it to the input
-	// 2. Append bytes read in from base64 file after the input
-	// 3. Encrypt using ECB 
+	//    This is also done once and cached for the session
+	// 3. Append bytes read in from base64 file after the input
+	// 4. Encrypt using ECB 
 	// So it's:
 	// AES-128-ECB(random-prefix || attacker-controller || target-bytes, random-key)
 
@@ -417,17 +418,17 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, si
 	}
 
 	static const size_t kMaxLen = 50;
-	byte_string randomPrefix = getRandomBytes(kMaxLen);
+	static byte_string s_randomPrefix = getRandomBytes(kMaxLen);
 	byte_string strUserInput(pInput, len);
-	randomPrefix += strUserInput;
+	byte_string firstBytes = s_randomPrefix + strUserInput;
 
 	size_t byteCnt = 0;
 	// Re-use the file-appending code from 2_12
-	std::unique_ptr<byte[]> pBytes = ModifyInput_2_12(randomPrefix.c_str(), randomPrefix.length(), aes.BlockSize(), byteCnt);
+	std::unique_ptr<byte[]> pBytes = ModifyInput_2_12(firstBytes.c_str(), firstBytes.length(), aes.BlockSize(), byteCnt);
 	aes.SetInput(pBytes.get(), byteCnt, false);  // false: we padded already
 	aes.InitOutput();
 	aes.Encrypt();
-	size_t outLen = 0;
+	outLen = 0;
 	const byte* pRes = aes.Result(outLen);
 	std::unique_ptr<byte[]> pResult(new byte[outLen]);
 	byteCopy(pResult.get(), outLen, pRes, outLen);

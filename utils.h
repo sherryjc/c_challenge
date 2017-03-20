@@ -91,6 +91,7 @@ namespace crypto_utils {
 	void generateKey(byte* pKey, size_t len);
 
 	size_t paddedSize(size_t inpSz, size_t blkSz);
+	bool stripPKCS7Padding(const std::string& str, std::string& outStr, size_t blockSize);
 
 }
 

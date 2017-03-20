@@ -863,3 +863,36 @@ size_t crypto_utils::paddedSize(size_t inpSz, size_t blkSz)
 {
 	return (blkSz > 0 && inpSz % blkSz) ? (inpSz / blkSz + 1) * blkSz : inpSz;
 }
+
+bool crypto_utils::stripPKCS7Padding(const std::string& str, std::string& outStr, size_t blockSize)
+{
+	size_t inputLen = str.length();
+	if (inputLen % blockSize) {
+		return false;
+	}
+	size_t startLastBlock = ((inputLen / blockSize) - 1) * blockSize;
+	std::string sLastBlock = str.substr(startLastBlock, blockSize);
+	char *pEnd = const_cast<char *>(sLastBlock.c_str()) + (blockSize - 1);
+	char padChar = *pEnd;
+	if (padChar >= blockSize) {
+		return false;
+	}
+	for (size_t i = 0; i < padChar; ++i) {
+		if (*pEnd != padChar) {
+			return false;
+		}
+		*pEnd-- = '\0';
+	}
+
+	// Now make sure the string that remains does not have anything that looks like pad characters
+	// Need to special case 0xa, 0xd
+	for (size_t i = padChar; i < blockSize; ++i) {
+		if (*pEnd < blockSize && *pEnd != 0xa && *pEnd != 0xd) {
+			return false;
+		}
+		pEnd--;
+	}
+	outStr = str.substr(0, startLastBlock);
+	outStr += sLastBlock;
+	return true;
+}

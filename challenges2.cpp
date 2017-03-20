@@ -397,3 +397,36 @@ bool Challenges::Set2Ch14()
 	return true;
 }
 
+static void _DoOneSet2Ch15(const std::string& inStr)
+{
+	std::string outStr;
+	static const size_t kBlockSz = 16;
+
+	bool b = crypto_utils::stripPKCS7Padding(inStr, outStr, kBlockSz);
+	std::cout << std::endl << inStr << " : ";
+	if (b) {
+		std::cout << "TRUE";
+	}
+	else {
+		std::cout << "FALSE";
+	}
+	std::cout << std::endl << outStr << std::endl;
+
+}
+bool Challenges::Set2Ch15()
+{
+	std::string sarray[] = {
+		"ICE ICE BABY\x04\x04\x04\x04",
+		"ICE ICE BABY\x05\x05\x05\x05",
+		"ICE ICE BABY\x01\x02\x03\x04",
+		"0123456789012345ICE ICE BABY\x04\x04\x04\x04",
+		"0123456789012345I\x0d\x0a\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d",
+		"0123456789"
+	};
+
+	for (size_t i = 0; i < _countof(sarray); ++i) {
+		_DoOneSet2Ch15(sarray[i]);
+	}
+
+	return true;
+}

@@ -13,4 +13,7 @@ using namespace io_utils;
 
 bool Challenges::Set3Ch17()
 {
+
+
+	return true;
 }

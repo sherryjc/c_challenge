@@ -413,6 +413,7 @@ static void _DoOneSet2Ch15(const std::string& inStr)
 	std::cout << std::endl << outStr << std::endl;
 
 }
+
 bool Challenges::Set2Ch15()
 {
 	std::string sarray[] = {
@@ -427,6 +428,54 @@ bool Challenges::Set2Ch15()
 	for (size_t i = 0; i < _countof(sarray); ++i) {
 		_DoOneSet2Ch15(sarray[i]);
 	}
+
+	return true;
+}
+
+void _FlipBit(byte* pBytes, size_t byteNum, size_t bitPos)
+{
+	// Flip bit of byte number(starting at 0 from left), bit position within byte MSB .. LSB
+	// e.g. flip LSB of first byte from left: byteNum = 0, bitPos = 0
+	pBytes[byteNum] ^= (1 << bitPos);
+}
+
+bool Challenges::Set2Ch16()
+{
+	// TODO: Backend doesn't do the full prepending and appending. But this proof
+	// of concept demonstrates the main crypto point.
+
+	std::string strInput = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+	size_t kBlockSize = 16;  // We could get this again like above; just hard-wired for now
+	size_t outLen = 0;
+	std::unique_ptr< byte[] > pRes1 = Backend::EncryptionOracle_2_16(strInput, outLen);
+	byte* pEnc = pRes1.get();
+	std::string rt1 = Backend::DecryptionOracle_2_16(pEnc, outLen);
+	std::cout << "Unmodified cipher text comes back as: " << std::endl;
+	std::cout << rt1 << std::endl;
+
+	// Simple bit flip shows how a change to C1, the first encrypted block,
+	// shows up in P2, the second decrypted (plain text) block.
+	// e.g. flip LSB of first three bytes from left:
+	//_FlipBit(pEnc, 0, 0);
+	//_FlipBit(pEnc, 1, 0);
+	//_FlipBit(pEnc, 2, 0);
+
+	// The bits that need to change in each cipher text character are the bits that differ
+	// between the original input value that encrypted to C1 and the desired "input" value.
+	// C1' is the altered C1:
+	// C1'[j] = C1[j] XOR (origInp[j] XOR desiredInp[j]);
+	static const std::string desiredStr = ";admin=true;";
+
+ 	for (size_t i = 0; i < desiredStr.length(); ++i) {
+ 		pEnc[i] ^= (desiredStr[i] ^ strInput[i]);
+ 	}
+
+	// See what the Oracle does with the modified cipher text
+	std::string rt2 = Backend::DecryptionOracle_2_16(pEnc, outLen);
+
+	std::cout << std::endl << "Modified cipher text comes back as: " << std::endl;
+	std::cout << rt2 << std::endl;
 
 	return true;
 }

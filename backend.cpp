@@ -9,7 +9,11 @@
 using namespace crypto_utils;
 using namespace io_utils;
 
-
+//////////////////////////////////////////////////////////////////////////
+//
+// Back end functions (Oracles, etc.) for Set 2
+//
+//////////////////////////////////////////////////////////////////////////
 
 // ------------------------ //
 // Set 2 Challenge 11      //
@@ -433,4 +437,63 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, si
 	std::unique_ptr<byte[]> pResult(new byte[outLen]);
 	byteCopy(pResult.get(), outLen, pRes, outLen);
 	return pResult;
+}
+
+
+// ------------------------ //
+// Set 2 Challenge 146      //
+// ------------------------ //
+
+std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_16(const std::string& strInput, size_t& outLen)
+{
+	// Prepend first internal string
+	// Quote out ";" and "=" characters from the user input
+	// Append second internal string
+	// Add PKCS7 padding
+	// Encrypt - AES, random key
+
+	static const std::string internalS1 = "comment1=cooking%20MCs;userdata=";
+	static const std::string internalS2 = ";comment2=%20like%20a%20pound%20of%20bacon";
+
+	Aes aes(128);
+	aes.SetMode(Aes::CBC);
+
+	// Generate the key the first time we are called in this session and stash it
+	if (s_nKeySize == 0 || nullptr == s_pKey) {
+		aes.SetKey(aes.BlockSize());
+		s_nKeySize = aes.KeySize();
+		s_pKey = new byte[s_nKeySize]{ 0 };
+		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
+	}
+	else {
+		// Re-use the key we already generated
+		aes.SetKey(s_pKey, s_nKeySize);
+	}
+
+	aes.SetInput(strInput);
+	aes.InitOutput();
+	aes.Encrypt();
+	outLen = 0;
+	const byte* pRes = aes.Result(outLen);
+	std::unique_ptr<byte[]> pResult(new byte[outLen]);
+	byteCopy(pResult.get(), outLen, pRes, outLen);
+	return pResult;
+}
+
+std::string Backend::DecryptionOracle_2_16(const byte* pInput, size_t len)
+{
+	// Decrypt the input string
+	// Look for ";admin=true;"
+
+	Aes aes(128);
+	aes.SetKey(s_pKey, s_nKeySize);
+	aes.SetInput(pInput, len);
+	aes.SetMode(Aes::CBC);
+	aes.Decrypt();
+
+	size_t outLen = 0;
+	const byte* pResult = aes.Result(outLen);
+	std::string sRet(reinterpret_cast<const char*>(pResult), outLen);
+
+	return sRet;
 }

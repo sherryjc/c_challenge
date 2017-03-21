@@ -20,4 +20,8 @@ namespace Backend {
 	// Set 2, Challenge 14
 	std::unique_ptr< byte[] > EncryptionOracle_2_14(const byte* pInput, size_t len, size_t& outLen);
 
+	// Set 2, Challenge 16
+	std::unique_ptr< byte[] >  EncryptionOracle_2_16(const std::string& strInput, size_t& outLen);
+	std::string DecryptionOracle_2_16(const byte* pInput, size_t len);
+
 }

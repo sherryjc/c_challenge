@@ -243,13 +243,9 @@ size_t io_utils::nBytesCompare(const byte* p1, const byte* p2, size_t nMax)
 
 void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt)
 {
-	std::cout << std::endl << "DEBUG: ";
+	std::cout << std::endl;
 	std::cout << pIntroStr;
-	for (size_t i=0; i<cnt; i++) {
-		char buf[8];
-		//sprintf_s(buf, _countof(buf), "0x%2x ", pBytes[i]);
-		std::cout << buf;
-	}
+	std::cout << std::endl;
 	for (size_t i = 0; i < cnt; i++) {
 		if (pBytes[i] >= 0x20 && pBytes[i] < 0x7f) {
 			std::cout << pBytes[i];
@@ -861,38 +857,35 @@ byte_string crypto_utils::getRandomBytes(const size_t nMaxLen)
 
 size_t crypto_utils::paddedSize(size_t inpSz, size_t blkSz)
 {
-	return (blkSz > 0 && inpSz % blkSz) ? (inpSz / blkSz + 1) * blkSz : inpSz;
+	if (blkSz == 0) {
+		return inpSz;
+	}
+	return (inpSz / blkSz + 1) * blkSz;
 }
 
 bool crypto_utils::stripPKCS7Padding(const std::string& str, std::string& outStr, size_t blockSize)
 {
 	size_t inputLen = str.length();
 	if (inputLen % blockSize) {
+		// Input is not a multiple of the block size - can't be padded correctly
 		return false;
 	}
-	size_t startLastBlock = ((inputLen / blockSize) - 1) * blockSize;
-	std::string sLastBlock = str.substr(startLastBlock, blockSize);
+	size_t startIdxLastBlock = ((inputLen / blockSize) - 1) * blockSize;
+	std::string sLastBlock = str.substr(startIdxLastBlock, blockSize);
 	char *pEnd = const_cast<char *>(sLastBlock.c_str()) + (blockSize - 1);
 	char padChar = *pEnd;
-	if (padChar >= blockSize) {
+	if (padChar > blockSize) {
 		return false;
 	}
 	for (size_t i = 0; i < padChar; ++i) {
 		if (*pEnd != padChar) {
 			return false;
 		}
-		*pEnd-- = '\0';
+		--pEnd;
 	}
 
-	// Now make sure the string that remains does not have anything that looks like pad characters
-	// Need to special case 0xa, 0xd
-	for (size_t i = padChar; i < blockSize; ++i) {
-		if (*pEnd < blockSize && *pEnd != 0xa && *pEnd != 0xd) {
-			return false;
-		}
-		pEnd--;
-	}
-	outStr = str.substr(0, startLastBlock);
-	outStr += sLastBlock;
+	std::string sTrimmedLastBlock = sLastBlock.substr(0, blockSize - padChar);
+	outStr = str.substr(0, startIdxLastBlock);  // This is also the length of all blocks not including the last one
+	outStr += sTrimmedLastBlock;
 	return true;
 }

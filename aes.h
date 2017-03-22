@@ -21,9 +21,9 @@ public:
 	size_t Read(const char* pFilename, FileType fType);
 	size_t Write(const char* pFilename, FileType fType);
 
-	void SetInput(const byte* pInp, size_t len, bool bPad=false);  // Don't want to pad when setting ciphertext input, for example
+	void SetInput(const byte* pInp, size_t len, bool bPad=false);  // Don't want to pad when setting cipher text input, for example
 	void SetInput(const byte_string& s, bool bPad=false);
-	void SetInput(const std::string& s, bool bPad=false);
+	void SetInput(const std::string& s, bool bPad=false);          // Could default this case to bPad=true but might be too confusing
 
 	// Set key to known value
 	void SetKey(const byte* pKey, const size_t keyLen);
@@ -39,6 +39,8 @@ public:
 	void Decrypt();
 
 	const byte* Result(size_t& len);
+	void ResultStr(byte_string& resStr) const;
+	void ResultStr(std::string& resStr) const;
 
 	int DetectMode(const byte* pCipherTxt, size_t len);
 	
@@ -60,6 +62,8 @@ public:
 		RANDOM
 	};
 	void SetInitializationVector(int ivType);
+	void SetInitializationVector(const byte_string& iv);
+	void InitializationVector(byte_string& iv) const;
 
 private:
 	byte GetSBoxValue(byte num);

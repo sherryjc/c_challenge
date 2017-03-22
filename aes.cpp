@@ -182,7 +182,7 @@ size_t Aes::ReadBase64(const char* pFilename)
 	m_nInputSize = binCnt;
 
 	// Output size is same as binary input - allocate the buffer now
-	// Padding is already accounted for in the Base64 format
+	// TODO: padding?
 	InitOutput(m_nInputSize);
 	return m_nInputSize;
 }
@@ -230,6 +230,26 @@ const byte* Aes::Result(size_t& len)
 	return pOut;
 }
 
+void Aes::ResultStr(byte_string& resStr) const
+{
+	resStr.clear();
+	resStr.reserve(m_nOutputSize);
+	byte* pOut = m_pOutput.get();
+	for (size_t i = 0; i < m_nOutputSize; ++i) {
+		resStr += *pOut++;
+	}
+}
+
+void Aes::ResultStr(std::string& resStr) const
+{
+	resStr.clear();
+	resStr.reserve(m_nOutputSize);
+	char* pOut = reinterpret_cast<char *>(m_pOutput.get());
+	for (size_t i = 0; i < m_nOutputSize; ++i) {
+		resStr += *pOut++;
+	}
+}
+
 void Aes::InitOutput(size_t inSize)   // = 0; defaults to size of input
 {
 	size_t sz = (inSize > 0) ? inSize : m_nInputSize; 
@@ -257,7 +277,7 @@ void Aes::SetInitializationVector(int ivType)
 {
 	// Initialize the IV to all 0s, then set the values if necessary
 
-	m_pInitVec.reset(new byte[m_nBlockSize]{ 0 });
+	m_pInitVec.reset(new byte[m_nBlockSize+1]{ 0 });
 
 	switch (ivType) {
 
@@ -274,6 +294,27 @@ void Aes::SetInitializationVector(int ivType)
 	default:
 		// Just leave the IV set to all 0s
 		break;
+	}
+}
+void Aes::SetInitializationVector(const byte_string& iv)
+{
+	// iv.length() should equal m_nBlockSize
+	m_pInitVec.reset(new byte[iv.length() + 1]{ 0 });
+	byte* pV = m_pInitVec.get();
+	const byte* pIV = iv.c_str();
+	for (size_t i = 0; i < iv.length(); ++i) {
+		*pV++ = *pIV++;
+	}
+}
+
+// Provide a copy of the iv
+void Aes::InitializationVector(byte_string& iv) const
+{
+	iv.clear();
+	iv.reserve(m_nBlockSize + 1);
+	byte* pV = m_pInitVec.get();
+	for (size_t i = 0; i < m_nBlockSize; ++i) {
+		iv += *pV++;
 	}
 }
 
@@ -318,18 +359,15 @@ size_t Aes::KeySize() const
 void Aes::SetInput(const byte* pInp, size_t len, bool bPad)
 {
 	m_nInputSize = bPad ? paddedSize(len, m_nBlockSize) : len;
-	m_pInput.reset(new byte[m_nInputSize+1]);
+	m_pInput.reset(new byte[m_nInputSize]);
 	byte* pInput = m_pInput.get();
-	byteCopy(pInput, m_nInputSize+1, pInp, len);
+	byteCopy(pInput, m_nInputSize, pInp, len);
 	pInput += len;
 	if (m_nInputSize > len) {
 		size_t nPaddingChars = m_nInputSize - len;
-		byte padChar = static_cast<byte>(nPaddingChars);  // PKCS_7  -- TODO make this configurable
+		byte padChar = static_cast<byte>(nPaddingChars);  // PKCS_7  -- TODO make this configurable?
 		byteCopyRepeated(pInput, nPaddingChars+1, padChar, nPaddingChars);
-		pInput += nPaddingChars;
 	}
-	*pInput = '\0';
-
 }
 
 void Aes::SetInput(const byte_string& s, bool bPad)

@@ -397,7 +397,7 @@ bool Challenges::Set2Ch14()
 	return true;
 }
 
-static void _DoOneSet2Ch15(const std::string& inStr)
+static void _DoOneSet2Ch15(const std::string& inStr, bool bExpected)
 {
 	std::string outStr;
 	static const size_t kBlockSz = 16;
@@ -405,10 +405,16 @@ static void _DoOneSet2Ch15(const std::string& inStr)
 	bool b = crypto_utils::stripPKCS7Padding(inStr, outStr, kBlockSz);
 	std::cout << std::endl << inStr << " : ";
 	if (b) {
-		std::cout << "TRUE";
+		std::cout << "true";
 	}
 	else {
-		std::cout << "FALSE";
+		std::cout << "false";
+	}
+	if (b == bExpected) {
+		std::cout << "  passed";
+	}
+	else {
+		std::cout << "  FAILED";
 	}
 	std::cout << std::endl << outStr << std::endl;
 
@@ -416,17 +422,27 @@ static void _DoOneSet2Ch15(const std::string& inStr)
 
 bool Challenges::Set2Ch15()
 {
-	std::string sarray[] = {
-		"ICE ICE BABY\x04\x04\x04\x04",
-		"ICE ICE BABY\x05\x05\x05\x05",
-		"ICE ICE BABY\x01\x02\x03\x04",
-		"0123456789012345ICE ICE BABY\x04\x04\x04\x04",
-		"0123456789012345I\x0d\x0a\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d",
-		"0123456789"
+	using _inputs = struct {
+		std::string str;
+		bool val;
+	};
+	_inputs iarray[] = {
+		{"ICE ICE BABY\x04\x04\x04\x04",  true},
+		{"ICE ICE BABY\x05\x05\x05\x05",  false},
+		{"ICE ICE BABY\x01\x02\x03\x04",  false},
+		{"0123456789012345ICE ICE BABY\x04\x04\x04\x04", true},
+		{"0123456789012345I\x0d\x0a\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d\x0d", true},
+		{"0123456789",  false},
+		{"0123456789\x06\x06\x06\x06\x06\x06", true},
+		{"0123456789\x07\x07\x07\x07\x07\x06", false},
+		{"0123456789ABCDEF", false},
+		{"0\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f", true},
+		{"0123456789ABCDEF\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10", true}
+
 	};
 
-	for (size_t i = 0; i < _countof(sarray); ++i) {
-		_DoOneSet2Ch15(sarray[i]);
+	for (size_t i = 0; i < _countof(iarray); ++i) {
+		_DoOneSet2Ch15(iarray[i].str, iarray[i].val);
 	}
 
 	return true;

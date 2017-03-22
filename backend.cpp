@@ -83,6 +83,26 @@ static std::unique_ptr<byte[]> ModifyInput_2_12(const byte* pInput, size_t input
 static size_t s_nKeySize = 0;
 static byte* s_pKey = nullptr;
 
+void GetSessionKey(size_t blockSzBits, byte*& pKey, size_t& keySz, bool bCreate=false)
+{
+	// Generate the key the first time we are called in this session and stash it
+	// TODO: make a map of "blockSzBits to key struct" to manage multiple keys for multiple block sizes
+	// For now, blockSzBits is only ever one value
+	// If bCreate is true, generate a new key if one is not already present.
+	// If bCreate is false, return what is there (even if null). The blockSzBits argument is
+	// currently ignored if bCreate is false.
+
+	if (bCreate && (s_nKeySize == 0 || nullptr == s_pKey)) {
+		Aes aes(blockSzBits);
+		aes.SetKey(aes.BlockSize());
+		s_nKeySize = aes.KeySize();
+		s_pKey = new byte[s_nKeySize]{ 0 };
+		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
+	}
+	pKey = s_pKey;
+	keySz = s_nKeySize;
+}
+
 std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_12(const byte* pInput, size_t len, size_t& outLen)
 {
 	// 1. Generate a random key (of the same length as the block size)
@@ -90,21 +110,14 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_12(const byte* pInput, si
 	// 2. Append bytes read in from base64 file after the plain text
 	// 3. Encrypt using ECB 
 
-
-	Aes aes(128);
+	static const size_t kBlockSzBits = 128;
+	Aes aes(kBlockSzBits);
 	aes.SetMode(Aes::ECB);
 
-	// Generate the key the first time we are called in this session and stash it
-	if (s_nKeySize == 0 || nullptr == s_pKey) {
-		aes.SetKey(aes.BlockSize());
-		s_nKeySize = aes.KeySize();
-		s_pKey = new byte[s_nKeySize]{ 0 };
-		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
-	}
-	else {
-		// Re-use the key we already generated
-		aes.SetKey(s_pKey, s_nKeySize);
-	}
+	byte* pKey = nullptr;
+	size_t keySz = 0;
+	GetSessionKey(kBlockSzBits, pKey, keySz, true);
+	aes.SetKey(pKey, keySz);
 
 	size_t byteCnt = 0;
 	std::unique_ptr<byte[]> pBytes = ModifyInput_2_12(pInput, len, aes.BlockSize(), byteCnt);
@@ -333,18 +346,12 @@ byte_string Backend::EncryptionOracle_2_13(const std::string& emailAddr)
 		return emptyByteStr;
 	}
 
-	Aes aes(128);
-	// Generate the key the first time we are called in this session and stash it
-	if (s_nKeySize == 0 || nullptr == s_pKey) {
-		aes.SetKey(aes.BlockSize());
-		s_nKeySize = aes.KeySize();
-		s_pKey = new byte[s_nKeySize]{ 0 };
-		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
-	}
-	else {
-		// Re-use the key we already generated
-		aes.SetKey(s_pKey, s_nKeySize);
-	}
+	static const size_t kBlockSzBits = 128;
+	Aes aes(kBlockSzBits);
+	byte* pKey = nullptr;
+	size_t keySz = 0;
+	GetSessionKey(kBlockSzBits, pKey, keySz, true);
+	aes.SetKey(pKey, keySz);
 	aes.SetMode(Aes::ECB);
 	aes.SetInput(encodedProfile, true);
 	aes.Encrypt();
@@ -363,13 +370,18 @@ bool Backend::Add_User_2_13(const byte_string& encryptedRec)
 
 	bool bUserAdded = false;
 
+
 	if (s_nKeySize == 0) {
 		std::cout << "Session key not found!!" << std::endl;
 		return bUserAdded;
 	}
 
-	Aes aes(128);
-	aes.SetKey(s_pKey, s_nKeySize);
+	static const size_t kBlockSzBits = 128;
+	Aes aes(kBlockSzBits);
+	byte* pKey = nullptr;
+	size_t keySz = 0;
+	GetSessionKey(kBlockSzBits, pKey, keySz);
+	aes.SetKey(pKey, keySz);
 	aes.SetInput(encryptedRec);
 	aes.Decrypt();
 
@@ -406,20 +418,14 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, si
 	// AES-128-ECB(random-prefix || attacker-controller || target-bytes, random-key)
 
 
-	Aes aes(128);
+	static const size_t kBlockSzBits = 128;
+	Aes aes(kBlockSzBits);
 	aes.SetMode(Aes::ECB);
 
-	// Generate the key the first time we are called in this session and stash it
-	if (s_nKeySize == 0 || nullptr == s_pKey) {
-		aes.SetKey(aes.BlockSize());
-		s_nKeySize = aes.KeySize();
-		s_pKey = new byte[s_nKeySize]{ 0 };
-		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
-	}
-	else {
-		// Re-use the key we already generated
-		aes.SetKey(s_pKey, s_nKeySize);
-	}
+	byte* pKey = nullptr;
+	size_t keySz = 0;
+	GetSessionKey(kBlockSzBits, pKey, keySz, true);
+	aes.SetKey(pKey, keySz);
 
 	static const size_t kMaxLen = 50;
 	static byte_string s_randomPrefix = getRandomBytes(kMaxLen);
@@ -441,7 +447,7 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_14(const byte* pInput, si
 
 
 // ------------------------ //
-// Set 2 Challenge 146      //
+// Set 2 Challenge 16       //
 // ------------------------ //
 
 std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_16(const std::string& strInput, size_t& outLen)
@@ -455,20 +461,13 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_16(const std::string& str
 	static const std::string internalS1 = "comment1=cooking%20MCs;userdata=";
 	static const std::string internalS2 = ";comment2=%20like%20a%20pound%20of%20bacon";
 
-	Aes aes(128);
+	static const size_t kBlockSzBits = 128;
+	Aes aes(kBlockSzBits);
 	aes.SetMode(Aes::CBC);
-
-	// Generate the key the first time we are called in this session and stash it
-	if (s_nKeySize == 0 || nullptr == s_pKey) {
-		aes.SetKey(aes.BlockSize());
-		s_nKeySize = aes.KeySize();
-		s_pKey = new byte[s_nKeySize]{ 0 };
-		byteCopy(s_pKey, s_nKeySize, aes.Key(), s_nKeySize);
-	}
-	else {
-		// Re-use the key we already generated
-		aes.SetKey(s_pKey, s_nKeySize);
-	}
+	byte* pKey = nullptr;
+	size_t keySz = 0;
+	GetSessionKey(kBlockSzBits, pKey, keySz, true);
+	aes.SetKey(pKey, keySz);
 
 	aes.SetInput(strInput);
 	aes.InitOutput();
@@ -485,8 +484,12 @@ std::string Backend::DecryptionOracle_2_16(const byte* pInput, size_t len)
 	// Decrypt the input string
 	// Look for ";admin=true;"
 
-	Aes aes(128);
-	aes.SetKey(s_pKey, s_nKeySize);
+	static const size_t kBlockSzBits = 128;
+	Aes aes(kBlockSzBits);
+	byte* pKey = nullptr;
+	size_t keySz = 0;
+	GetSessionKey(kBlockSzBits, pKey, keySz);
+	aes.SetKey(pKey, keySz);
 	aes.SetInput(pInput, len);
 	aes.SetMode(Aes::CBC);
 	aes.Decrypt();

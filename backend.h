@@ -24,4 +24,10 @@ namespace Backend {
 	std::unique_ptr< byte[] >  EncryptionOracle_2_16(const std::string& strInput, size_t& outLen);
 	std::string DecryptionOracle_2_16(const byte* pInput, size_t len);
 
+	// Set 3, Challenge 17
+	void EncryptionOracle_3_17(byte_string& ciphertext, byte_string& iv);
+	bool DecryptionOracle_3_17(const byte_string& ciphertext, const byte_string& iv);
+	// Debug only - wouldn't expose this to the user
+	void DumpAllOracle_3_17();
+
 }

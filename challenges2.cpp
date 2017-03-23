@@ -31,10 +31,9 @@ bool Challenges::Set2Ch10()
 #endif
 
 	static const byte bKey[] = "YELLOW SUBMARINE";
-	std::string key("YELLOW SUBMARINE");
 
 	Aes aes(128, Aes::CBC);
-	aes.SetKey(bKey, key.length());
+	aes.SetKey(bKey, _countof(bKey) - 1);
 	aes.Read(pInFile, FileType::BASE64);
 	aes.Decrypt();
 	size_t nWritten = aes.Write(pOutputFile, FileType::BINARY);
@@ -56,17 +55,16 @@ bool Challenges::Set2Ch10()
 bool Challenges::Set2Ch11()
 {
 	// This is the plain text to submit to the encryption oracle
-	static const char pTxt[] = "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnop";
+	static const std::string inStr = "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnop";
 	static const size_t nTrials = 100;
 	int detectedModeCnt[3]{ 0 };
 
 	Aes aes(128);
 
 	for (size_t i = 0; i < nTrials; ++i) {
-
-		const std::string strResult = Backend::EncryptionOracle_2_11(pTxt, _countof(pTxt) - 1);
-		const byte* pResult = reinterpret_cast<const byte*>(strResult.c_str()); 
-		int detectedMode = aes.DetectMode(pResult, strResult.length());
+		byte_string outStr;
+		Backend::EncryptionOracle_2_11(inStr, outStr);
+		int detectedMode = aes.DetectMode(outStr.c_str(), outStr.length());
 		detectedModeCnt[detectedMode]++;
 	}
 

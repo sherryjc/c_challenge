@@ -120,13 +120,47 @@ bool Challenges::Set3Ch18()
 
 	static const size_t kBlockSz = 16;
 	std::string inpB64 = "L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==";
+	static const byte bKey[] = "YELLOW SUBMARINE";
 
 	size_t outCnt = 0;
 	std::unique_ptr<byte[]> pBin = crypto_utils::base64ToBin(inpB64.c_str(), inpB64.length(), outCnt);
 	byte* pBytes = pBin.get();
 
+	Aes aes(128);
+	aes.SetMode(Aes::CTR);
+	aes.SetKey(bKey, _countof(bKey)-1);
 
+	std::unique_ptr<byte[]> pOutput(new byte[outCnt]);
+	byte* pOut = pOutput.get();
+	aes.DecryptStream(pBytes, outCnt, pOut, outCnt);
 
+	std::string display(reinterpret_cast<char *>(pOut), outCnt);
+	std::cout << "Result:" << std::endl;
+	std::cout << display << std::endl;
+
+	static const byte plaintext1[] =	
+		"This is a stream of boring and content-free plain text that \n"
+		"will not make for interesting reading for anybody,\n"
+		"but it may just be the test that breaks the code.\n";
+
+	byte ciphertext1[_countof(plaintext1)]{ 0 };
+	byte plaintext2[_countof(plaintext1)]{ 0 };
+
+	// Generate a random key
+	aes.SetKey(kBlockSz);
+	aes.ResetStream();
+	aes.EncryptStream(plaintext1, _countof(plaintext1)-1, ciphertext1, _countof(ciphertext1) - 1);
+	aes.ResetStream();
+	aes.DecryptStream(ciphertext1, _countof(ciphertext1) - 1, plaintext2, _countof(plaintext2) - 1);
+
+	std::cout << "Before:" << std::endl;
+	std::cout << plaintext1 << std::endl;
+
+	std::cout << "Encrypted:" << std::endl;
+	std::cout << ciphertext1 << std::endl;
+
+	std::cout << "After:" << std::endl;
+	std::cout << plaintext2 << std::endl;
 
 	return true;
 }

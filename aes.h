@@ -10,7 +10,8 @@ public:
 	enum _mode {
 		AES_UNKNOWN,
 		ECB,			// Electronic Codebook 
-		CBC				// Cipher Block Chaining
+		CBC,			// Cipher Block Chaining
+		CTR				// Counter
 	};
 
 	Aes(size_t nBlockSizeBits, int mode=Aes::ECB);  // ECB not secure, but the default due to backwards test compatibility
@@ -38,6 +39,16 @@ public:
 	void Encrypt();
 	void Decrypt();
 
+	// CTR mode only:
+	void EncryptStream(const byte* pInput, size_t inSz, byte* pOutput, size_t outSz);
+	void DecryptStream(const byte* pInput, size_t inSz, byte* pOutput, size_t outSz); // really the same as encrypt
+	void ResetStream();  // resets the block counter to 0
+	void IncrStreamCtr();
+	void SetNonce(int64_t nonce);
+private:
+	void SetBlkCtr(int64_t blkCtr);
+
+public:
 	const byte* Result(size_t& len);
 	void ResultStr(byte_string& resStr) const;
 	void ResultStr(std::string& resStr) const;
@@ -88,9 +99,6 @@ private:
 	static void MxVec4(byte* v);
 	static void MIxVec4(byte* v);
 	
-public:
-	void ModifyInput1(const char* pInput, size_t inputLen);	 // TODO - move to backend
-
 private:
 // data members
 	size_t m_nBlockSizeBits;
@@ -109,6 +117,13 @@ private:
 	std::unique_ptr<byte[]>	m_pInitVec;
 
 	int m_mode;
+
+	// Counter array bytes
+	// Format:
+	// 8 bytes unsigned little-endian nonce
+	// 8 bytes unsigned little-endian block count (== byte count / 16)
+	byte m_ctrArray[16]{ 0 };
+	int64_t m_BlockCTR;
 };
 
 #endif // AES_H

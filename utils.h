@@ -45,6 +45,11 @@ namespace io_utils {
 	bool byteCompare(const byte* p1, const byte* p2, size_t n);
 	size_t nBytesCompare(const byte* p1, const byte* p2, size_t nMax);
 
+	// Big-endian
+	void int64ToBytesBE(int64_t paramInt, byte* pBytes);
+	// Little-endian
+	void int64ToBytesLE(int64_t paramInt, byte* pBytes);
+
 	void logError(const char* str);
 }
 

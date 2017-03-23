@@ -83,7 +83,8 @@ Aes::Aes(size_t nBlockSizeBits, int mode) :
 	m_pKey(nullptr),
 	m_pExpandedKey(nullptr),
 	m_pInitVec(nullptr),
-	m_mode(mode)
+	m_mode(mode),
+	m_BlockCTR(0)
 {
 	if (nBlockSizeBits == 128)
 	{
@@ -750,41 +751,6 @@ void Aes::DecryptBlock(byte* pOutput, const byte* pInput)
 
 }
 
-void Aes::ModifyInput1(const char* pInput, size_t inputLen)
-{
-	// Append 5-10 bytes before and after
-	// Counts are random, values ... ??
-	static const char appendChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-	size_t nBefore = (crypto_utils::getRandomNumber() % 6) + 5;
-	size_t nAfter = (crypto_utils::getRandomNumber() % 6) + 5;
-	m_nInputSize = inputLen + nBefore + nAfter;
-	// Round up the size of the buffer allocated to the nearest multiple of the block size
-	size_t paddedCnt = paddedSize(m_nInputSize, m_nBlockSize); 
-
-	m_pInput.reset(new byte[paddedCnt+1]);
-	byte* pInp = m_pInput.get();
-	const char *pAppend = &appendChars[0];
-
-	for (size_t i = 0; i < nBefore; ++i) {
-		*pInp++ = static_cast<byte>(*pAppend++);
-	}
-
-	for (size_t i = 0; i < inputLen; ++i) {
-		*pInp++ = static_cast<byte>(*pInput++);
-	}
-
-	for (size_t i = 0; i < nAfter; ++i) {
-		*pInp++ = static_cast<byte>(*pAppend++);
-	}
-
-	// PKCS_7 padding
-	size_t nPadBytes = paddedCnt - m_nInputSize;
-	for (size_t i = 0; i < nPadBytes; ++i) {
-		*pInp++ = static_cast<byte>(nPadBytes);
-	}
-	*pInp = '\0';
-}
 
 int Aes::DetectMode(const byte* pCipherTxt, size_t len)
 {
@@ -796,6 +762,61 @@ int Aes::DetectMode(const byte* pCipherTxt, size_t len)
 void Aes::UnPadResult()
 {
 	// Detect any padding characters and remove them
+	// TODO - so far this is done by the caller
 
 }
 
+
+// CTR mode implementations
+
+void Aes::EncryptStream(const byte* pInput, size_t inSz, byte* pOutput, size_t outSz)
+{
+	// Assume the stream pointer is already positioned where the user wants it
+	// They can call ResetStream to position it to 0, otherwise it continues where it left off
+
+	// Count of bytes to convert is the smaller of the two given buffers (in, out)
+	size_t sz = inSz > outSz ? outSz : inSz;
+
+	static const size_t kBlockSz = 16;
+	// Assert m_nBlockSize == kBlockSz
+
+	while (sz > 0) {
+		byte keyStream[kBlockSz]{ 0 };
+		EncryptBlock(keyStream, m_ctrArray);
+		size_t chunk = sz > kBlockSz ? kBlockSz : sz;
+		xorBlock(pOutput, keyStream, pInput, chunk);
+		pOutput += chunk;
+		pInput += chunk;
+		sz -= chunk;
+		IncrStreamCtr();
+	}
+
+}
+
+void Aes::DecryptStream(const byte* pInput, size_t inSz, byte* pOutput, size_t outSz)
+{
+	EncryptStream(pInput, inSz, pOutput, outSz);
+}
+
+void Aes::ResetStream()
+{
+	m_BlockCTR = 0;
+	SetBlkCtr(m_BlockCTR);
+}
+
+void Aes::SetNonce(int64_t nonce)
+{
+	io_utils::int64ToBytesLE(nonce, &m_ctrArray[0]);
+}
+
+void Aes::SetBlkCtr(int64_t blkCtr)
+{
+	io_utils::int64ToBytesLE(blkCtr, &m_ctrArray[8]);
+}
+
+void Aes::IncrStreamCtr()
+{
+	// This could be optimized to only change the necessary bytes etc.
+	++m_BlockCTR;
+	SetBlkCtr(m_BlockCTR);
+}

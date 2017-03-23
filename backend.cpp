@@ -18,8 +18,30 @@ using namespace io_utils;
 // ------------------------ //
 // Set 2 Challenge 11      //
 // ------------------------ //
+void ModifyInput_2_11(const std::string& inStr, std::string& outStr, size_t blockSz)
+{
+	// Append 5-10 bytes before and after
+	// Counts are random, values fixed
+	static const std::string appendStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-const std::string Backend::EncryptionOracle_2_11(const char* pInput, size_t len)
+	size_t nBefore = (crypto_utils::getRandomNumber() % 6) + 5;
+	size_t nAfter = (crypto_utils::getRandomNumber() % 6) + 5;
+
+	outStr = appendStr.substr(0, nBefore);
+	outStr += inStr;
+	outStr += appendStr.substr(nBefore, nAfter);
+
+	// PKCS_7 padding
+	size_t inStrTotalLen = inStr.length() + nBefore + nAfter;
+	size_t paddedCnt = paddedSize(inStrTotalLen, blockSz);
+	size_t nPadBytes = paddedCnt - inStrTotalLen;
+	char padByteVal = static_cast<char>(nPadBytes);
+	for (size_t i = 0; i < nPadBytes; ++i) {
+		outStr += padByteVal;
+	}
+}
+
+void Backend::EncryptionOracle_2_11(const std::string& inStr, byte_string& outStr)
 {
 	// 1. Generate a random key (of the same length as the block size)
 	// 2. Append bytes before and after the plain text, numbers of bytes chosen randomly
@@ -29,15 +51,15 @@ const std::string Backend::EncryptionOracle_2_11(const char* pInput, size_t len)
 	Aes aes(128);
 	aes.SetKey(aes.BlockSize());
 
-	aes.ModifyInput1(pInput, len);
+	std::string s;
+	ModifyInput_2_11(inStr, s, aes.BlockSize());
+	aes.SetInput(s);
 	aes.InitOutput();  // default to size of input
 
 	aes.SetMode(getRandomBool() ? Aes::CBC : Aes::ECB);
 	aes.SetInitializationVector(aes.Mode() == Aes::CBC ? Aes::RANDOM : Aes::ALL_ZEROES);
 	aes.Encrypt();
-	size_t outLen = 0;
-	const byte* pResult = aes.Result(outLen);
-	return reinterpret_cast<const char*>(pResult);
+	aes.ResultStr(outStr);
 }
 
 // ------------------------ //

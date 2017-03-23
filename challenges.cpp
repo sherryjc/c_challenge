@@ -277,10 +277,9 @@ bool Challenges::Set1Ch7()
 #endif
 
 	static const byte bKey[] = "YELLOW SUBMARINE";  
-	std::string key("YELLOW SUBMARINE");
 
 	Aes aes(128);
-	aes.SetKey(bKey, key.length());
+	aes.SetKey(bKey, _countof(bKey)-1);
 	aes.Read(pInFile, FileType::BASE64);
 	aes.Decrypt();
 	size_t nWritten = aes.Write(pOutputFile, FileType::BINARY);
@@ -339,10 +338,9 @@ bool Challenges::Set1Ch7y()
 	static const char* pOutFile = "./data/set1/challenge7/test_input_dec.txt";
 
 	static const byte bKey[] = "YELLOW SUBMARINE";
-	std::string key("YELLOW SUBMARINE");
 
 	Aes aes(128);
-	aes.SetKey(bKey, key.length());
+	aes.SetKey(bKey, _countof(bKey)-1);
 	size_t nRead = aes.Read(pInFile, FileType::ASCII);
 	std::cout << "Read " << nRead << " ASCII characters (plus possible padding) from plaintext file " << pEncFile << std::endl;
 	aes.Encrypt();
@@ -351,7 +349,7 @@ bool Challenges::Set1Ch7y()
 	std::cout << "Wrote " << nWritten << " binary characters to encrypted file " << pEncFile << std::endl;
 
 	Aes aes2(128);
-	aes2.SetKey(bKey, key.length());
+	aes2.SetKey(bKey, _countof(bKey) - 1);
 	aes2.Read(pEncFile, FileType::BINARY);
 	aes2.Decrypt();
 	size_t nWritten2 = aes2.Write(pOutFile, FileType::BINARY);
@@ -388,10 +386,9 @@ bool Challenges::Set1Ch7z()
 #endif 
 
 	static const byte bKey[] = "YELLOW SUBMARINE";
-	std::string key("YELLOW SUBMARINE");
 
 	Aes aes2(128);
-	aes2.SetKey(bKey, key.length());
+	aes2.SetKey(bKey, _countof(bKey) - 1);
 	aes2.Read(pEncBinFile, FileType::BINARY);
 	aes2.Decrypt();
 	size_t nWritten2 = aes2.Write(pDecBinFile, FileType::BINARY);
@@ -444,10 +441,9 @@ bool Challenges::Set1Ch8a()
 	static const char* pEncFile = "./data/set1/challenge8/test_input_enc.hex";
 
 	static const byte bKey[] = "YELLOW SUBMARINE";
-	std::string key("YELLOW SUBMARINE");
 
 	Aes aes(128);
-	aes.SetKey(bKey, key.length());
+	aes.SetKey(bKey, _countof(bKey) - 1);
 	size_t nRead = aes.Read(pInFile, FileType::ASCII);
 	std::cout << "Read " << nRead << " ASCII characters (plus possible padding) from plaintext file " << pEncFile << std::endl;
 	aes.Encrypt();

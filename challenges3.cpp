@@ -42,33 +42,71 @@ bool Challenges::Set3Ch17()
 	// C1' = C1 XOR Z XOR 0x1
 	// Z are the "guesses"
 
-	size_t blockNum = nBlocks - 1;		// blocknum: Block we're currently decrypting
-										// (blockNum-1) is the cipher block we're modifying
+	if (nBlocks < 2) {
+		std::cout << "This method won't work for block sizes less than 2" << std::endl;
+		return false;
+	}
 
+	// we'll gather all of the decrypted plaintext into this string
 	std::string plaintext(nBytes, 0x0);
-	size_t byteInBlock = kBlockSize - 1;
-	byte_string modCipher = ciphertext;  // copy of cipher we'll modify
-	
-	size_t plainIdx = (blockNum) * kBlockSize + byteInBlock;
-	size_t cipherIdx = plainIdx - kBlockSize;
-	for (size_t i = 2; i < 0xff; ++i) {
-		byte z = static_cast<byte>(i);
-		modCipher[cipherIdx] = ciphertext[cipherIdx] ^ z ^ 0x1;
 
-		// debug
-		byte C1 = ciphertext[cipherIdx];
-		byte C1p = modCipher[cipherIdx];
-		// end debug
+	for (size_t blkNum = nBlocks-1; blkNum >0; --blkNum) {
 
-		bool bPaddingValid = Backend::DecryptionOracle_3_17(modCipher, iv);
-		if (bPaddingValid) {
-			// We got our valid byte.
-			plaintext[plainIdx] = z;
-			break;
+		// Copy of the ciphertext we'll be modifying
+		byte_string modCipher = ciphertext.substr(0, (blkNum+1)*kBlockSize);
+		byte z[kBlockSize]{ 0 };
+		size_t plainBlockStart = (blkNum)* kBlockSize;
+		size_t cipherBlockStart = plainBlockStart - kBlockSize;
+
+		// Work through each byte of the current block
+		for (size_t offset = 1; offset <= kBlockSize; ++offset) {
+
+			size_t activeByteIdx = kBlockSize - offset;
+			byte padChar = static_cast<byte>(offset);
+
+			// Set the bytes in the cipher that we have already figured out
+			for (size_t j = kBlockSize - 1; j > activeByteIdx; --j) {
+				modCipher[cipherBlockStart + j] = ciphertext[cipherBlockStart + j] ^ z[j] ^ padChar;
+			}
+			// Cover the case of a false positive match of the test pad character.
+			// If the "valid" byte == the pad char, proceed on to see if there are
+			// any other matches and only use the pad char if not.
+			byte padMatch = 0;
+			// Now try all values for the byte 'z' of the cipher we are varying
+			size_t cipherIdx = cipherBlockStart + activeByteIdx;
+			for (size_t i = 1; i < 0xff; ++i) {
+
+				z[activeByteIdx] = static_cast<byte>(i);
+				modCipher[cipherIdx] = ciphertext[cipherIdx] ^ z[activeByteIdx] ^ padChar;
+
+				bool bPaddingValid = Backend::DecryptionOracle_3_17(modCipher, iv);
+				if (bPaddingValid) {
+ 					if (z[activeByteIdx] == padChar) {
+ 						padMatch = padChar;
+					}
+					else {
+						// We got our valid byte.
+						plaintext[plainBlockStart + activeByteIdx] = z[activeByteIdx];
+						padMatch = 0;
+						break;
+					}
+				}
+			}
+ 			if (padMatch != 0) {
+ 				plaintext[plainBlockStart + activeByteIdx] = padMatch;
+				z[activeByteIdx] = padMatch;
+ 				padMatch = 0;
+ 			}
 		}
 	}
 
-	std::cout << plaintext << std::endl;
+	//std::cout << "Plaintext before padding stripped:" << std::endl;
+	//std::cout << plaintext << std::endl;
+
+	std::string strippedPlaintext;
+	crypto_utils::stripPKCS7Padding(plaintext, strippedPlaintext, kBlockSize);
+	std::cout << "Plaintext after padding stripped:" << std::endl;
+	std::cout << strippedPlaintext << std::endl;
 
 	return true;
 }

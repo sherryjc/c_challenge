@@ -35,7 +35,12 @@ static const std::string _inputs[] = {
 static const std::string _dbginputs[] = {
 	"abcdefghijklmnop0123456789ABCDEF",
 	"abcdefghijklmnop0123456789ABCDE",
-	"abcdefghijklmnop0123456789ABCD"
+	"abcdefghijklmnop0123456789ABCD",
+	"ABCDEFGHIJKLMNOPabcdefghijklmnop0123456789ABCD",
+	"ABCDEFGHIJKLMNOPabcdefghijklmnop0123456789ABCDEF",
+	"ABCDEFGHIJKLMNOPabcdefghijklmnop0123456789ABCDEFWXYZ",
+	"MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA==",
+
 };
 
 void Backend::DumpAllOracle_3_17()
@@ -63,9 +68,8 @@ void Backend::EncryptionOracle_3_17(byte_string& ciphertext, byte_string& iv)
 	aes.SetKey(pKey, keySz);
 
 	size_t inputIndex = crypto_utils::getRandomNumber() % _countof(_inputs);
-
-	//aes.SetInput(_inputs[inputIndex], true);
-	aes.SetInput(_dbginputs[2], true);
+	aes.SetInput(_inputs[inputIndex], true);
+	//aes.SetInput(_dbginputs[6], true);
 	aes.SetMode(Aes::CBC);
 	aes.SetInitializationVector(Aes::RANDOM);
 	aes.Encrypt();

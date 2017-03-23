@@ -874,7 +874,7 @@ bool crypto_utils::stripPKCS7Padding(const std::string& str, std::string& outStr
 	std::string sLastBlock = str.substr(startIdxLastBlock, blockSize);
 	char *pEnd = const_cast<char *>(sLastBlock.c_str()) + (blockSize - 1);
 	char padChar = *pEnd;
-	if (padChar > blockSize) {
+	if (padChar == 0 || padChar > blockSize) {
 		return false;
 	}
 	for (size_t i = 0; i < padChar; ++i) {

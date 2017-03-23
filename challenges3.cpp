@@ -110,3 +110,23 @@ bool Challenges::Set3Ch17()
 
 	return true;
 }
+
+bool Challenges::Set3Ch18()
+{
+	//	key = YELLOW SUBMARINE
+	//	nonce = 0
+	//	format = 64 bit unsigned little endian nonce,
+	//	64 bit little endian block count(byte count / 16)
+
+	static const size_t kBlockSz = 16;
+	std::string inpB64 = "L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==";
+
+	size_t outCnt = 0;
+	std::unique_ptr<byte[]> pBin = crypto_utils::base64ToBin(inpB64.c_str(), inpB64.length(), outCnt);
+	byte* pBytes = pBin.get();
+
+
+
+
+	return true;
+}

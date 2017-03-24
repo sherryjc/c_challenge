@@ -164,6 +164,7 @@
     <ClCompile Include="challenges.cpp" />
     <ClCompile Include="challenges2.cpp" />
     <ClCompile Include="challenges3.cpp" />
+    <ClCompile Include="challenges4.cpp" />
     <ClCompile Include="cryptopals.cpp" />
     <ClCompile Include="RNG.cpp" />
     <ClCompile Include="stdafx.cpp" />

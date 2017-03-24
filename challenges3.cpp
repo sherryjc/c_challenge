@@ -333,3 +333,53 @@ bool Challenges::Set3Ch21()
 
 	return true;
 }
+
+
+
+
+bool Challenges::Set3Ch22()
+{
+	RNG rng;
+
+	// Part 1: confirm that the same seed generates the same sequence
+	static const uint32_t seed = 47;
+	rng.Initialize(seed);
+
+	static const size_t numRands = 10;
+
+	std::vector<uint32_t> vRandNums;
+	vRandNums.reserve(numRands);
+	for (size_t i = 0; i < numRands; ++i) {
+		vRandNums.push_back(rng.ExtractU32());
+	}
+
+	//std::cout << std::endl << "Here is a list of random numbers generated with seed = " << seed << std::endl;
+
+	for (auto val : vRandNums) {
+	//	std::cout << val << std::endl;
+	}
+
+	// Part 2: discover the seed
+
+	// Server/Oracle does this
+	//   i. wait random time  (using some other random number generator ???)
+	//  ii. seed with current timestamp
+	// iii. wait random time 
+	//  iv. get first value returned from RNG
+	// Task is to discover the seed?
+	// Know the current time - just go back enough seconds and start trying:
+	//  - Seed with time value
+	//  - Get first RN
+	// Until you get a match
+	int64_t unixTime;
+	io_utils::GetCurrentTimeUnixFmt(&unixTime);
+
+	rng.Initialize(static_cast<uint32_t>(unixTime));
+	std::cout << rng.ExtractU32() << std::endl;
+
+	int64_t unixTime2 = unixTime + 100;
+	rng.Initialize(static_cast<uint32_t>(unixTime2));
+	std::cout << rng.ExtractU32() << std::endl;
+
+	return true;
+}

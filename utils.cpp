@@ -258,6 +258,29 @@ void io_utils::int64ToBytesLE(int64_t paramInt, byte* pBytes)
 	}
 }
 
+bool io_utils::GetCurrentTimeUnixFmt(int64_t *pUnixTime)
+{
+	SYSTEMTIME	stSystemTime;
+	memset(&stSystemTime, 0, sizeof(stSystemTime));
+	GetSystemTime(&stSystemTime);
+
+	FILETIME	stFileTime;
+
+	if (SystemTimeToFileTime(&stSystemTime, &stFileTime) == FALSE) {
+		return false;
+	}
+
+	// FILETIME -> UNIXTIME
+	*pUnixTime = stFileTime.dwHighDateTime;
+	*pUnixTime <<= 32;
+	*pUnixTime += stFileTime.dwLowDateTime;
+	*pUnixTime -= 116444736000000000;
+	*pUnixTime /= 10000000;
+	// *pUnixTime -= 32400;			// JST -> GMT from original example ?
+
+	return true;
+}
+
 void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt)
 {
 	std::cout << std::endl;

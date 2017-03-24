@@ -5,6 +5,7 @@
 
 #include "utils.h"
 #include "aes.h"
+#include "map"
 
 using namespace crypto_utils;
 using namespace io_utils;
@@ -771,7 +772,7 @@ void Aes::UnPadResult()
 
 void Aes::EncryptStream(const byte* pInput, size_t inSz, byte* pOutput, size_t outSz)
 {
-	// Assume the stream pointer is already positioned where the user wants it
+	// Assume the stream block counter is already positioned where the user wants it
 	// They can call ResetStream to position it to 0, otherwise it continues where it left off
 
 	// Count of bytes to convert is the smaller of the two given buffers (in, out)
@@ -789,6 +790,36 @@ void Aes::EncryptStream(const byte* pInput, size_t inSz, byte* pOutput, size_t o
 		pInput += chunk;
 		sz -= chunk;
 		IncrStreamCtr();
+	}
+
+}
+
+void Aes::ReplaceStreamBytes(byte* pCiphertext, size_t cipherLen, size_t offset, const std::string& replacement)
+{
+	// Modify the ciphertext at the given offset to correspond to the encryption of the replacement text.
+
+	// If the requested edit would off the end just return
+	if (offset + replacement.length() >= cipherLen) {
+		return;
+	}
+
+	size_t firstBlock = offset / m_nBlockSize;
+	size_t lastBlock = (offset + replacement.length()) / m_nBlockSize;
+	std::vector<byte_string> m_streamKeys;  
+
+	// Compute all of the keys we will need first
+	for (size_t blk = firstBlock; blk <= lastBlock; ++blk) {
+		SetBlkCtr(blk);
+		byte_string key;
+		key.resize(m_nBlockSize);
+		EncryptBlock(const_cast<byte *>(key.c_str()), m_ctrArray);
+		m_streamKeys.push_back(key);   // These are indexed in order firstBlock ... lastBlock == 0 ... lastBlock-firstBlock
+	}
+
+	for (size_t i = 0, arrayIdx = offset; i < replacement.length(); ++i, ++arrayIdx) {
+		size_t blk = arrayIdx / m_nBlockSize;
+		size_t byteIdx = arrayIdx % m_nBlockSize;
+		pCiphertext[arrayIdx] = m_streamKeys[blk - firstBlock][byteIdx] ^ replacement[i];
 	}
 
 }

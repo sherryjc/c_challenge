@@ -50,6 +50,9 @@ namespace io_utils {
 	// Little-endian
 	void int64ToBytesLE(int64_t paramInt, byte* pBytes);
 
+	bool GetCurrentTimeUnixFmt(int64_t *pUnixTime);
+
+
 	void logError(const char* str);
 }
 

@@ -45,6 +45,8 @@ public:
 	void ResetStream();  // resets the block counter to 0
 	void IncrStreamCtr();
 	void SetNonce(int64_t nonce);
+	void ReplaceStreamBytes(byte* pCiphertext, size_t cipherLen, size_t offset, const std::string& replacement);
+
 private:
 	void SetBlkCtr(int64_t blkCtr);
 

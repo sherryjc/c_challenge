@@ -7,8 +7,10 @@
 #include "utils.h"
 #include "aes.h"
 #include "backend.h"
+#include "RNG.h"
 
 using namespace io_utils;
+using namespace crypto_utils;
 
 
 bool Challenges::Set3Ch17()
@@ -300,6 +302,34 @@ bool Challenges::Set3Ch20()
 	//dbg_utils::displayBytes("Key bytes: ", pKey, minCipherLen);
 
 	std::cout << std::endl << pResult.get();
+
+	return true;
+}
+
+bool Challenges::Set3Ch21()
+{
+	RNG rng;
+
+	static const size_t numRands = 10;
+	static const uint32_t seed = getRandomNumber();
+
+	rng.Initialize(seed);
+
+	std::vector<uint32_t> vRandNums;
+	vRandNums.reserve(numRands);
+	for (size_t i = 0; i < numRands; ++i) {
+		vRandNums.push_back(rng.ExtractU32());
+	}
+
+	uint32_t minVal = 0;
+	uint32_t maxVal = UINT32_MAX;
+
+	std::cout << std::endl << "Here is a list of random numbers." << std::endl;
+	std::cout << "Values are between " << minVal << " and " << maxVal << std::endl << std::endl;
+
+	for (auto val : vRandNums) {
+		std::cout << val << std::endl;
+	}
 
 	return true;
 }

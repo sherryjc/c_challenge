@@ -246,9 +246,8 @@ bool Challenges::Set1Ch6x()
 	std::unique_ptr<byte[]> pBinBytes = crypto_utils::base64ToBin(pBase64Buf.get(), base64Cnt, binCnt);
 	const byte* pBinBuf = pBinBytes.get();
 
-	static const byte bKey[] = "ornrn";  // TODO - straighten this out ... conversion function?
-	std::string key("ornrn");
-	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pBinBytes.get(), binCnt, bKey, key.length());  // see above
+	static const byte bKey[] = "ornrn";  
+	std::unique_ptr<char[]> pRoundTrip = crypto_utils::decryptRepeatingKey(pBinBytes.get(), binCnt, bKey, _countof(bKey)-1);  
 	std::string ostr2(pRoundTrip.get());
 	size_t nWritten = io_utils::writeTextFile(outputFile2, pRoundTrip.get(), ostr2.length());
 	bool bRc = (nWritten == ostr2.length());

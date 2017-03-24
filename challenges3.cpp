@@ -164,3 +164,142 @@ bool Challenges::Set3Ch18()
 
 	return true;
 }
+
+bool Challenges::Set3Ch19()
+{
+	static const std::string inputStrings[] = {
+	"SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
+	"Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
+	"RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
+	"RWlnaHRlZW50aC1jZW50dXJ5IGhvdXNlcy4=",
+	"SSBoYXZlIHBhc3NlZCB3aXRoIGEgbm9kIG9mIHRoZSBoZWFk",
+	"T3IgcG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+	"T3IgaGF2ZSBsaW5nZXJlZCBhd2hpbGUgYW5kIHNhaWQ=",
+	"UG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+	"QW5kIHRob3VnaHQgYmVmb3JlIEkgaGFkIGRvbmU=",
+	"T2YgYSBtb2NraW5nIHRhbGUgb3IgYSBnaWJl",
+	"VG8gcGxlYXNlIGEgY29tcGFuaW9u",
+	"QXJvdW5kIHRoZSBmaXJlIGF0IHRoZSBjbHViLA==",
+	"QmVpbmcgY2VydGFpbiB0aGF0IHRoZXkgYW5kIEk=",
+	"QnV0IGxpdmVkIHdoZXJlIG1vdGxleSBpcyB3b3JuOg==",
+	"QWxsIGNoYW5nZWQsIGNoYW5nZWQgdXR0ZXJseTo=",
+	"QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
+	"VGhhdCB3b21hbidzIGRheXMgd2VyZSBzcGVudA==",
+	"SW4gaWdub3JhbnQgZ29vZCB3aWxsLA==",
+	"SGVyIG5pZ2h0cyBpbiBhcmd1bWVudA==",
+	"VW50aWwgaGVyIHZvaWNlIGdyZXcgc2hyaWxsLg==",
+	"V2hhdCB2b2ljZSBtb3JlIHN3ZWV0IHRoYW4gaGVycw==",
+	"V2hlbiB5b3VuZyBhbmQgYmVhdXRpZnVsLA==",
+	"U2hlIHJvZGUgdG8gaGFycmllcnM/",
+	"VGhpcyBtYW4gaGFkIGtlcHQgYSBzY2hvb2w=",
+	"QW5kIHJvZGUgb3VyIHdpbmdlZCBob3JzZS4=",
+	"VGhpcyBvdGhlciBoaXMgaGVscGVyIGFuZCBmcmllbmQ=",
+	"V2FzIGNvbWluZyBpbnRvIGhpcyBmb3JjZTs=",
+	"SGUgbWlnaHQgaGF2ZSB3b24gZmFtZSBpbiB0aGUgZW5kLA==",
+	"U28gc2Vuc2l0aXZlIGhpcyBuYXR1cmUgc2VlbWVkLA==",
+	"U28gZGFyaW5nIGFuZCBzd2VldCBoaXMgdGhvdWdodC4=",
+	"VGhpcyBvdGhlciBtYW4gSSBoYWQgZHJlYW1lZA==",
+	"QSBkcnVua2VuLCB2YWluLWdsb3Jpb3VzIGxvdXQu",
+	"SGUgaGFkIGRvbmUgbW9zdCBiaXR0ZXIgd3Jvbmc=",
+	"VG8gc29tZSB3aG8gYXJlIG5lYXIgbXkgaGVhcnQs",
+	"WWV0IEkgbnVtYmVyIGhpbSBpbiB0aGUgc29uZzs=",
+	"SGUsIHRvbywgaGFzIHJlc2lnbmVkIGhpcyBwYXJ0",
+	"SW4gdGhlIGNhc3VhbCBjb21lZHk7",
+	"SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=",
+	"VHJhbnNmb3JtZWQgdXR0ZXJseTo="
+	};
+
+	static const size_t kBlockSz = 16;
+	Aes aes(kBlockSz*8);
+	aes.SetMode(Aes::CTR);
+	aes.SetKey(kBlockSz);		// Generate a random key
+
+	//std::vector<std::string> vResults;
+
+	for (auto str : inputStrings) {
+		size_t binInputCnt = 0;
+		std::unique_ptr<byte[]> pBin = crypto_utils::base64ToBin(str.c_str(), str.length(), binInputCnt);
+		byte* pBytes = pBin.get();
+
+		std::unique_ptr<byte[]> pCipher(new byte[binInputCnt]);
+		byte* pCiph = pCipher.get();
+		aes.ResetStream();
+		aes.EncryptStream(pBytes, binInputCnt, pCiph, binInputCnt);
+		dbg_utils::displayHex(pCiph, binInputCnt);
+		//vResults.emplace_back(std::string(reinterpret_cast<char *>(pCiph), binInputCnt));
+	}
+
+
+	return true;
+}
+
+
+bool Challenges::Set3Ch20()
+{
+	// Each line of this file is to be treated as a separate b64-encoded string
+	static const char* pInFile = "./data/set3/challenge20/inputs.b64";
+
+	size_t charCnt = 0;
+	std::unique_ptr<char[]> pText = io_utils::readTextFile(pInFile, charCnt);
+	if (!pText || !pText.get() || charCnt == 0) {
+		return false;
+	}
+	std::vector<std::string> vecInpB64Strings;
+	io_utils::separateStrings(vecInpB64Strings, pText.get(), charCnt);
+
+	std::vector<byte_string> vEncryptedStrings;
+
+	static const size_t kBlockSz = 16;
+	Aes aes(kBlockSz * 8);
+	aes.SetMode(Aes::CTR);
+	aes.SetKey(kBlockSz);  // Generate a random key
+
+	for (auto str : vecInpB64Strings) {
+		size_t binInputCnt = 0;
+		std::unique_ptr<byte[]> pBin = crypto_utils::base64ToBin(str.c_str(), str.length(), binInputCnt);
+		byte* pInBytes = pBin.get();
+		// Could save vector of pInBytes to see what the answers are
+
+		// Just encrypt the input text and save it in a vector
+		std::unique_ptr<byte[]> pCipher(new byte[binInputCnt]);
+		byte* pCiph = pCipher.get();
+		aes.ResetStream();
+		aes.EncryptStream(pInBytes, binInputCnt, pCiph, binInputCnt);
+		vEncryptedStrings.emplace_back(byte_string(pCiph, binInputCnt));
+	}
+
+	// See what the smallest ciphertext string is minCipherLen
+	size_t minCipherLen = 100000000;
+
+	for (auto cs : vEncryptedStrings) {
+		if (cs.length() < minCipherLen) {
+			minCipherLen = cs.length();
+		}
+	}
+
+	// Concatenate the first minCipherLen bytes from each cipher string into one long buffer
+	// First make sure there is no size limitation
+	byte_string concatBuf;
+	if (vEncryptedStrings.size() * minCipherLen > concatBuf.max_size()) {
+		std::cout << "Problem with using a string here" << std::endl;
+		return false;
+	}
+
+	for (auto cs : vEncryptedStrings) {
+		concatBuf += cs.substr(0, minCipherLen);
+	}
+
+	// Decrypt the buffer using repeated-XOR technique with a key size equal to minCipherLen
+	std::unique_ptr<byte[]> spWholeKey = std::unique_ptr<byte[]>(new byte[minCipherLen]);
+	byte* pKey = spWholeKey.get();
+
+	std::unique_ptr<char[]> pResult = 
+		crypto_utils::decodeUsingFixedKeyLength(concatBuf.c_str(), concatBuf.length(), pKey, minCipherLen);
+
+
+	//dbg_utils::displayBytes("Key bytes: ", pKey, minCipherLen);
+
+	std::cout << std::endl << pResult.get();
+
+	return true;
+}

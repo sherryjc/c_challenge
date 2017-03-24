@@ -55,7 +55,7 @@ namespace io_utils {
 
 namespace dbg_utils {
 	void displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt);
-
+	void displayHex(const byte* pBytes, size_t cnt);
 }
 
 namespace crypto_utils {

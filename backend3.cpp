@@ -32,6 +32,7 @@ static const std::string _inputs[] = {
 	"MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g=",
 	"MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"
 };
+
 static const std::string _dbginputs[] = {
 	"abcdefghijklmnop0123456789ABCDEF",
 	"abcdefghijklmnop0123456789ABCDE",
@@ -39,8 +40,7 @@ static const std::string _dbginputs[] = {
 	"ABCDEFGHIJKLMNOPabcdefghijklmnop0123456789ABCD",
 	"ABCDEFGHIJKLMNOPabcdefghijklmnop0123456789ABCDEF",
 	"ABCDEFGHIJKLMNOPabcdefghijklmnop0123456789ABCDEFWXYZ",
-	"MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA==",
-
+	"MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="
 };
 
 void Backend::DumpAllOracle_3_17()

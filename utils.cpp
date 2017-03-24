@@ -275,6 +275,20 @@ void dbg_utils::displayBytes(const char* pIntroStr, const byte* pBytes, size_t c
 	std::cout << std::endl;
 }
 
+void dbg_utils::displayHex(const byte* pBytes, size_t cnt)
+{
+	std::cout << std::endl;
+	char buf[8];
+	for (size_t i = 0; i < cnt; i++) {
+		if (i % 16 == 0) {
+			std::cout << std::endl;
+		}
+		sprintf_s(buf, _countof(buf), " %02x", pBytes[i]);
+		std::cout << buf;
+	}
+	std::cout << std::endl;
+}
+
 
 /*****************************************/
 /*    Crypto Utils                       */

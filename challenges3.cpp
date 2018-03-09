@@ -270,7 +270,7 @@ bool Challenges::Set3Ch20()
 		vEncryptedStrings.emplace_back(byte_string(pCiph, binInputCnt));
 	}
 
-	// See what the smallest ciphertext string is minCipherLen
+	// See what the smallest ciphertext string is (store result in minCipherLen)
 	size_t minCipherLen = 100000000;
 
 	for (auto cs : vEncryptedStrings) {

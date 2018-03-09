@@ -794,17 +794,17 @@ void Aes::EncryptStream(const byte* pInput, size_t inSz, byte* pOutput, size_t o
 
 }
 
-void Aes::ReplaceStreamBytes(byte* pCiphertext, size_t cipherLen, size_t offset, const std::string& replacement)
+void Aes::ReplaceStreamBytes(byte* pCiphertext, size_t cipherLen, size_t offset, const byte_string& replacement)
 {
 	// Modify the ciphertext at the given offset to correspond to the encryption of the replacement text.
 
-	// If the requested edit would off the end just return
+	// If the requested edit would run off the end just return
 	if (offset + replacement.length() >= cipherLen) {
 		return;
 	}
 
 	size_t firstBlock = offset / m_nBlockSize;
-	size_t lastBlock = (offset + replacement.length()) / m_nBlockSize;
+	size_t lastBlock = (offset + replacement.length()-1) / m_nBlockSize;
 	std::vector<byte_string> m_streamKeys;  
 
 	// Compute all of the keys we will need first

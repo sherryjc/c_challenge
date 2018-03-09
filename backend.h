@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include "utils.h"
+#include "aes.h"
 
 namespace Backend {
 
@@ -30,4 +31,25 @@ namespace Backend {
 	// Debug only - wouldn't expose this to the user
 	void DumpAllOracle_3_17();
 
+	// Set 4
+	class Oracle4 {
+	public:
+		static Oracle4* Get(int nChallenge);
+		void EditEncryptedStream(size_t offset, byte_string replacement);
+		size_t GetEncryptedDataSize();
+		void GetEncryptedData(byte* pBuffer, size_t bufSz);
+
+		// Dump the database in plain text for testing. Obviously this would not be part of the real Oracle!
+		void DumpDatabase();
+
+	private:
+		Oracle4();
+		~Oracle4();
+		void _Init(int nChallenge);
+		// data members
+		Aes* m_pAes = nullptr;
+		const size_t m_blockSize = 16;
+		byte* m_pEncryptedData = nullptr;
+		size_t m_pEncryptedDataSz = 0;
+	};
 }

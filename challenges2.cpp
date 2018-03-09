@@ -488,7 +488,7 @@ bool Challenges::Set2Ch16()
 	// See what the Oracle does with the modified cipher text
 	std::string rt2 = Backend::DecryptionOracle_2_16(pEnc, outLen);
 
-	std::cout << std::endl << "Modified cipher text comes back as: " << std::endl;
+	std::cout << std::endl << "Modified cipher text comes back decrypted as: " << std::endl;
 	std::cout << rt2 << std::endl;
 
 	return true;

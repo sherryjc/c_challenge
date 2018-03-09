@@ -161,6 +161,7 @@
     <ClCompile Include="aes.cpp" />
     <ClCompile Include="backend.cpp" />
     <ClCompile Include="backend3.cpp" />
+    <ClCompile Include="backend4.cpp" />
     <ClCompile Include="challenges.cpp" />
     <ClCompile Include="challenges2.cpp" />
     <ClCompile Include="challenges3.cpp" />

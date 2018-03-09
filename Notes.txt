@@ -1,0 +1,10 @@
+
+        Cryptopals Notes	
+        =================
+
+
+Set 2, Challenge 16    CBC bit-flipping
+
+An oracle takes an input string and encrypts it under AES CBC and returns the encrypted bytes. It also takes encrypted bytes and returns the decrypted string. The oracle strips out ';' and '=' characters from user input. However, by adjusting the encrypted bytes passed to the oracle, a malicious ";admin=true" string can still be input to the oracle. (This assumes the oracle would actually allow the encrypted bytes that were input to change the state of the oracle.)
+
+

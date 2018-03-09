@@ -491,6 +491,9 @@ std::unique_ptr< byte[] >  Backend::EncryptionOracle_2_16(const std::string& str
 	GetSessionKey(kBlockSzBits, pKey, keySz, true);
 	aes.SetKey(pKey, keySz);
 
+	// TODO: add pre-pending and appending
+	// Just returning the encrypted bytes corresponding to the given input is enough to allow the caller to demonstrate the idea
+
 	aes.SetInput(strInput);
 	aes.InitOutput();
 	aes.Encrypt();

@@ -51,7 +51,9 @@ void Backend::Oracle4::_Init(int nChallenge)
 		m_pEncryptedDataSz = 0;
 	}
 
-	if (nChallenge == 25)
+	switch (nChallenge)
+	{
+	case 25:
 	{
 		// same input data as Set1Ch7
 		static const char* pInFile = "./data/set4/challenge25/input.b64";
@@ -75,6 +77,20 @@ void Backend::Oracle4::_Init(int nChallenge)
 		m_pAes->ResetStream();
 		m_pAes->EncryptStream(inputStr.c_str(), m_pEncryptedDataSz, m_pEncryptedData, m_pEncryptedDataSz);
 	}
+	break;
+
+	case 26:
+	{
+		m_pAes = new Aes(m_blockSize * 8);
+		m_pAes->SetMode(Aes::CTR);
+		m_pAes->SetKey(m_blockSize);		// Generate a random key
+	}
+	break;
+
+	default:
+		break;
+	}
+	
 }
 
 void Backend::Oracle4::EditEncryptedStream(size_t offset, byte_string replacement)
@@ -84,8 +100,6 @@ void Backend::Oracle4::EditEncryptedStream(size_t offset, byte_string replacemen
 	m_pAes->ReplaceStreamBytes(m_pEncryptedData, m_pEncryptedDataSz, offset, replacement);
 
 }
-
-
 
 size_t Backend::Oracle4::GetEncryptedDataSize()
 {
@@ -100,6 +114,70 @@ void Backend::Oracle4::GetEncryptedData(byte* pBuffer, size_t bufSz)
 
 }
 
+void Backend::Oracle4::EnterQuery(const byte_string& inputStr)
+{
+	static const byte_string preStr = reinterpret_cast<byte*>("comment1=cooking%20MCs;userdata=");
+	static const byte_string postStr = reinterpret_cast<byte*>(";comment2=%20like%20a%20pound%20of%20bacon");
+
+	if (!m_pAes) return;
+
+	// Check input string for ';' or '='. If the user enters these, reject the query.
+	const byte* pBytes = inputStr.c_str();
+	size_t cnt = inputStr.length();
+	while (cnt > 0)
+	{
+		if ((*pBytes == '=') || (*pBytes == ';')) return;
+		++pBytes;
+		--cnt;
+	}
+
+	// Form pre str + user input + post str
+	byte_string s = preStr;
+	s.append(inputStr);
+	s.append(postStr);
+
+	m_pEncryptedDataSz = s.length();
+	m_pEncryptedData = (new byte[m_pEncryptedDataSz]);
+
+	// Encrypt and store the string
+	m_pAes->ResetStream();
+	m_pAes->EncryptStream(s.c_str(), s.length(), m_pEncryptedData, m_pEncryptedDataSz);
+}
+
+bool Backend::Oracle4::QueryAdmin()
+{
+	// Check whether the query string contains the magic sequence
+	static const byte* pAdminStr = reinterpret_cast<byte*>(";admin=true;");
+
+	// Decrypt the query string
+	// Assumption - decrypted data size is no bigger than encrypted data size!
+	std::unique_ptr<byte[]> pDb(new byte[m_pEncryptedDataSz + 1]);
+	m_pAes->ResetStream();
+	m_pAes->DecryptStream(m_pEncryptedData, m_pEncryptedDataSz, pDb.get(), m_pEncryptedDataSz);
+	byte* pBytes = pDb.get();
+	pBytes[m_pEncryptedDataSz] = '\0';
+
+	// Return whether the user has admin rights based on the contents of the string
+	byte_string s(pBytes);
+	return (s.find(pAdminStr) != byte_string::npos);
+}
+
+// The oracle exposes setting encrypted data directly (for Challenge 26).
+void Backend::Oracle4::SetEncryptedData(const byte_string& encryptData)
+{
+	if (m_pEncryptedData)
+	{
+		delete m_pEncryptedData;
+		m_pEncryptedData = nullptr;
+		m_pEncryptedDataSz = 0;
+	}
+
+	m_pEncryptedDataSz = encryptData.length();
+	m_pEncryptedData = new byte[m_pEncryptedDataSz];
+	io_utils::byteCopy(m_pEncryptedData, m_pEncryptedDataSz, encryptData.c_str(), m_pEncryptedDataSz);
+}
+
+
 // Test function - remove from production code!
 void Backend::Oracle4::DumpDatabase()
 {
@@ -111,3 +189,4 @@ void Backend::Oracle4::DumpDatabase()
 	pDisplay[m_pEncryptedDataSz] = '\0';
 	std::cout << pDisplay << std::endl;
 }
+

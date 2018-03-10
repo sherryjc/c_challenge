@@ -5,6 +5,19 @@
 
 Set 2, Challenge 16    CBC bit-flipping
 
-An oracle takes an input string and encrypts it under AES CBC and returns the encrypted bytes. It also takes encrypted bytes and returns the decrypted string. The oracle strips out ';' and '=' characters from user input. However, by adjusting the encrypted bytes passed to the oracle, a malicious ";admin=true" string can still be input to the oracle. (This assumes the oracle would actually allow the encrypted bytes that were input to change the state of the oracle.)
+The basic idea of a "bit-flipping" attack is that the oracle gives access to the encrypted values that result from a given plaintext. The plaintext can be altered and the new resulting cipher text compared against the previous result.
 
+In 2-16, an oracle takes an input string and encrypts it under AES CBC and returns the encrypted bytes. It also takes encrypted bytes and returns the decrypted string. The oracle strips out ';' and '=' characters from user input. However, by adjusting the encrypted bytes passed to the oracle, a malicious ";admin=true" string can still be input to the oracle. (This assumes the oracle would actually allow the encrypted bytes that were input to change the state of the oracle.)
+
+See also Set 4, Challenge 26
+
+
+Set 4, Challenge 25   "Random access read-write" AES CTR
+
+An oracle allows editing the encrypted bytes on a random-access basis. It also allows the encrypted bytes to be read. This is enough information to figure out what the key was for any position and hence what the original plaintext bytes were.
+
+
+Set 4, Challenge 26
+
+Implements the bit-flipping from 2-16 for AES CTR.
 

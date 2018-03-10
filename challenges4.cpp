@@ -32,7 +32,8 @@ static void _EditStream(byte* pCiphertext, size_t cipherLen,
 
 bool Challenges::Set4Ch25()
 {
-	Backend::Oracle4* pOracle = Backend::Oracle4::Get(25);
+	constexpr int kThisTestCaseNr = 25;
+	Backend::Oracle4* pOracle = Backend::Oracle4::Get(kThisTestCaseNr);
 	if (!pOracle) return false;
 
 	// Test code (this wouldn't be exposed by the real oracle)
@@ -85,3 +86,71 @@ bool Challenges::Set4Ch25()
 	return true;
 }
 
+bool Challenges::Set4Ch26()
+{
+	constexpr int kThisTestCaseNr = 26;
+	Backend::Oracle4* pOracle = Backend::Oracle4::Get(kThisTestCaseNr);
+	if (!pOracle) return false;
+
+	byte_string strInput1 = reinterpret_cast<byte *>("AAAAAAAAAAAAAAAAAAAAAA");
+	byte_string strInput2 = reinterpret_cast<byte *>("BAAAAAAAAAAAAAAAAAAAAA");
+
+	pOracle->EnterQuery(strInput1);
+	size_t encSz1 = pOracle->GetEncryptedDataSize();
+	std::unique_ptr<byte[]> upCT1(new byte[encSz1 + 1]);
+	byte* pCT1 = upCT1.get();
+	pOracle->GetEncryptedData(pCT1, encSz1);
+
+	// Debug only, wouldn't be available in the real oracle
+	std::cout << std::endl << "##########################" << std::endl;
+	pOracle->DumpDatabase();
+	std::cout << std::endl << "##########################" << std::endl;
+
+	// See where the second test string's encryption differs from the first.
+	// That's the point where we'll insert our modified encrypted text.
+	pOracle->EnterQuery(strInput2);
+	size_t encSz2 = pOracle->GetEncryptedDataSize();
+	std::unique_ptr<byte[]> upCT2(new byte[encSz2 + 1]);
+	byte* pCT2 = upCT2.get();
+	pOracle->GetEncryptedData(pCT2, encSz2);
+
+	size_t minSz = encSz1 < encSz2 ? encSz1 : encSz2;  // These should be the same
+
+	size_t diffIdx = io_utils::nBytesCompare(pCT1, pCT2, minSz) + 1;  // Move one byte forward to leave one character of the user data before our insertion
+
+	if (diffIdx >= minSz)
+	{
+		std::cout << "The strings encrypted to the same bytes??" << std::endl;
+		return false;
+	}
+
+	// The bits that need to change in each cipher text character are the bits that differ
+	// between the original input value that encrypted to C1 and the desired "input" value.
+	// C1' is the altered C1:
+	// C1'[j] = C1[j] XOR (origInp[j] XOR desiredInp[j]);
+	static const byte_string desiredStr = reinterpret_cast<byte*>(";admin=true;comment=");
+	if (diffIdx + desiredStr.length() > encSz1)
+	{
+		std::cout << "Problem with length calculation - not enough room" << std::endl;
+		return false;
+	}
+
+	for (size_t i = 0; i < desiredStr.length(); ++i) {
+		pCT1[diffIdx++] ^= (desiredStr[i] ^ strInput1[i]);
+	}
+
+	// Set the modified cipher text on the oracle
+	pOracle->SetEncryptedData(pCT1);
+
+	std::cout << "Admin rights: ";
+	std::string result = (pOracle->QueryAdmin() ? "TRUE" : "FALSE");
+	std::cout << result << std::endl;
+
+	// Debug only
+	std::cout << std::endl << "##########################" << std::endl;
+	pOracle->DumpDatabase();
+	std::cout << std::endl << "##########################" << std::endl;
+
+	return true;
+
+}

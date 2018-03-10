@@ -38,6 +38,10 @@ namespace Backend {
 		void EditEncryptedStream(size_t offset, byte_string replacement);
 		size_t GetEncryptedDataSize();
 		void GetEncryptedData(byte* pBuffer, size_t bufSz);
+		void SetEncryptedData(const byte_string& encryptData);
+
+		void EnterQuery(const byte_string& inputStr);
+		bool QueryAdmin();
 
 		// Dump the database in plain text for testing. Obviously this would not be part of the real Oracle!
 		void DumpDatabase();

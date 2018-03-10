@@ -457,6 +457,8 @@ bool Challenges::Set2Ch16()
 {
 	// TODO: Backend doesn't do the full prepending and appending. But this proof
 	// of concept demonstrates the main crypto point.
+	// I also didn't play by the rules about what the oracle exposes.
+	// For a real implementation (but for AES CTR, not CBC) see Set 4, Challenge 26.
 
 	std::string strInput = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 

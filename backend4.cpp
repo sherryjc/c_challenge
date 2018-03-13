@@ -87,6 +87,12 @@ void Backend::Oracle4::_Init(int nChallenge)
 	}
 	break;
 
+	case 27:
+	{
+		m_key = reinterpret_cast<byte*>("Pf18(&*l2zy^26Bn");
+	}
+	break;
+
 	default:
 		break;
 	}
@@ -162,7 +168,7 @@ bool Backend::Oracle4::QueryAdmin()
 	return (s.find(pAdminStr) != byte_string::npos);
 }
 
-// The oracle exposes setting encrypted data directly (for Challenge 26).
+// The oracle exposes setting encrypted data directly (needed for various Challenges).
 void Backend::Oracle4::SetEncryptedData(const byte_string& encryptData)
 {
 	if (m_pEncryptedData)
@@ -175,6 +181,78 @@ void Backend::Oracle4::SetEncryptedData(const byte_string& encryptData)
 	m_pEncryptedDataSz = encryptData.length();
 	m_pEncryptedData = new byte[m_pEncryptedDataSz];
 	io_utils::byteCopy(m_pEncryptedData, m_pEncryptedDataSz, encryptData.c_str(), m_pEncryptedDataSz);
+}
+
+void Backend::Oracle4::GetCiphertext(byte_string& ciphertxt)
+{
+	ciphertxt = m_ciphertext;
+}
+
+void Backend::Oracle4::SetCiphertext(const byte_string& ciphertxt)
+{
+	m_ciphertext = ciphertxt;
+}
+
+void Backend::Oracle4::SetRawCiphertext(const byte* pBytes, size_t len)
+{
+	if (m_pRawCiphertext)
+	{
+		delete m_pRawCiphertext;
+		m_pRawCiphertext = nullptr;
+		m_nRawCTSz = 0;
+	}
+
+	m_pRawCiphertext = new byte[len];
+	m_nRawCTSz = len;
+	byte* pDst = m_pRawCiphertext;
+	for (size_t ii = 0; ii < len; ++ii)
+	{
+		*pDst++ = *pBytes++;
+	}
+}
+
+
+void Backend::Oracle4::GetPlaintext(byte_string& plaintxt)
+{
+	plaintxt = m_plaintext;
+}
+
+void Backend::Oracle4::SetPlaintext(const byte_string& plaintxt)
+{
+	m_plaintext = plaintxt;
+}
+
+void Backend::Oracle4::Encrypt_Ch27()
+{
+	Aes aes(m_blockSize * 8);
+	aes.SetMode(Aes::CBC);
+	aes.SetKey(m_key.c_str(), m_key.length());
+	aes.SetInitializationVector(m_key);
+	aes.SetInput(m_plaintext, true);
+	aes.Encrypt();
+	aes.ResultStr(m_ciphertext);
+
+}
+
+void Backend::Oracle4::Validate_Ch27(byte_string& outStr)
+{
+	// The following implements some bad oracle behavior: 
+	// If the currently-stored query text is invalid, return a string to be used 
+	// in an error message that contains the decrypted text.
+
+	Aes aes(m_blockSize * 8);
+	aes.SetMode(Aes::CBC);
+	aes.SetKey(m_key.c_str(), m_key.length());
+	aes.SetInitializationVector(m_key);
+	//aes.SetInput(m_ciphertext, true);
+	aes.SetInput(m_pRawCiphertext, m_nRawCTSz, false);
+	aes.Decrypt();
+	aes.ResultStr(m_plaintext);
+
+	// The challenge says to only return this if an error is found, i.e. 
+	// it's an example of an error message that leaks information.
+	// Here we'll just return the over-informative message all the time.
+	outStr = m_plaintext;
 }
 
 

@@ -32,6 +32,7 @@ namespace Challenges {
 	bool Set3Ch22();
 	bool Set4Ch25();
 	bool Set4Ch26();
+	bool Set4Ch27();
 }
 
 

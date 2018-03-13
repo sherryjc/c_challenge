@@ -40,6 +40,14 @@ namespace Backend {
 		void GetEncryptedData(byte* pBuffer, size_t bufSz);
 		void SetEncryptedData(const byte_string& encryptData);
 
+		void GetCiphertext(byte_string& ciphertxt);
+		void SetCiphertext(const byte_string& ciphertxt);
+		void SetRawCiphertext(const byte* pBytes, size_t len);
+		void GetPlaintext(byte_string& plaintext);
+		void SetPlaintext(const byte_string& plainText);
+		void Encrypt_Ch27();
+		void Validate_Ch27(byte_string& errorTxt);
+
 		void EnterQuery(const byte_string& inputStr);
 		bool QueryAdmin();
 
@@ -53,6 +61,14 @@ namespace Backend {
 		// data members
 		Aes* m_pAes = nullptr;
 		const size_t m_blockSize = 16;
+
+		byte_string m_ciphertext;
+		byte_string m_plaintext;
+		byte_string m_key;
+
+		byte*  m_pRawCiphertext = nullptr;    // TODO: because I am having trouble getting 0's into a byte_string w/o it terminating the string
+		size_t m_nRawCTSz = 0;
+		// TODO - refactor, get rid of these 
 		byte* m_pEncryptedData = nullptr;
 		size_t m_pEncryptedDataSz = 0;
 	};

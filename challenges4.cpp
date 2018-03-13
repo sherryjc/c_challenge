@@ -8,6 +8,7 @@
 #include "aes.h"
 #include "backend.h"
 #include "RNG.h"
+#include "sha1_test.h"
 
 using namespace io_utils;
 using namespace crypto_utils;
@@ -232,6 +233,27 @@ bool Challenges::Set4Ch27()
 	else
 	{
 		std::cout << "The input string was valid" << std::endl;
+	}
+
+	return true;
+}
+
+bool Challenges::Set4Ch28()
+{
+	// SHA1_Test::RunAll();
+
+	char const string[] = "abc";
+	char const expect[] = "a9993e364706816aba3e25717850c26c9cd0d89d";
+	char result[21];
+	char hexresult[41];
+	size_t offset;
+
+	/* calculate hash */
+	SHA1(result, string, strlen(string));
+
+	/* format the hash for comparison */
+	for (offset = 0; offset < 20; offset++) {
+		sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
 	}
 
 	return true;

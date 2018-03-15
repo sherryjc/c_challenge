@@ -9,6 +9,7 @@
 #include "backend.h"
 #include "RNG.h"
 #include "sha1_test.h"
+#include "sha1.h"
 
 using namespace io_utils;
 using namespace crypto_utils;
@@ -238,23 +239,131 @@ bool Challenges::Set4Ch27()
 	return true;
 }
 
+static void _DisplayBinAsHex(const char* pResult, size_t resultLen)
+{
+	dbg_utils::displayHex(reinterpret_cast<const byte*>(pResult), resultLen);
+}
+
+static void _DisplaySHA1(const char* pChars, size_t len)
+{
+	char result[kDigestSize + 1];
+	SHA1(result, pChars, len);
+	_DisplayBinAsHex(result, kDigestSize);
+}
+
+static void _DisplaySHA1(const byte* pBytes, size_t len)
+{
+	char result[kDigestSize + 1];
+	SHA1(result, reinterpret_cast<const char*>(pBytes), len);
+	_DisplayBinAsHex(result, kDigestSize);
+}
+
+
 bool Challenges::Set4Ch28()
 {
 	// SHA1_Test::RunAll();
 
-	char const string[] = "abc";
-	char const expect[] = "a9993e364706816aba3e25717850c26c9cd0d89d";
-	char result[21];
-	char hexresult[41];
-	size_t offset;
+	char const string1[] = "abc";
+	const byte_string string2 = reinterpret_cast<byte*>("abc");
+	const byte_string string3 = reinterpret_cast<byte*>("Abc");
+	const byte_string string4 = { 0xd0, 0x96, 0xd0, 0x95, 0xd0, 0x9b, 0xd0, 0x90, 0xd0, 0x9d, 0xd0, 0x9d, 0xd0, 0xac, 0xd0, 0x86, 0xd0, 0x98 };
 
-	/* calculate hash */
-	SHA1(result, string, strlen(string));
+	_DisplaySHA1(string1, strlen(string1));
+	_DisplaySHA1(string2.c_str(), string2.length());
+	_DisplaySHA1(string3.c_str(), string3.length());
+	_DisplaySHA1(string4.c_str(), string4.length());
 
-	/* format the hash for comparison */
-	for (offset = 0; offset < 20; offset++) {
-		sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
+	const byte_string key1 = reinterpret_cast<byte*>("Salt3743");
+	const byte_string key2 = reinterpret_cast<byte*>("Salt2185");
+
+	byte_string string_k1_4 = key1 + string4;
+	byte_string string_k2_4 = key2 + string4;
+	_DisplaySHA1(string_k1_4.c_str(), string_k1_4.length());
+	_DisplaySHA1(string_k2_4.c_str(), string_k2_4.length());
+
+	return true;
+}
+
+static bool _ComputeMDPaddedMsg(const byte_string& msg, byte_string& paddedMsg, bool bIncludeLen)
+{
+	// Does the full pre-processing a described in the SHA-1 wiki page.
+	// Append '1' bit by adding 0x80 if the message length is a multiple of 8 bits
+	// Append 0 <= k < 512 bits '0' (64 bytes) s.t. resulting bit length is 448 (mod 512)
+	// Then append the original message length as a 64-bit BE integer.
+
+	int64_t origMLBits = msg.length() * 8;
+
+	paddedMsg = msg;
+	// Since our messages are in bytes, we will always add the first 0x80
+	paddedMsg += (byte)0x80;
+
+	size_t paddedMsgByteLen = paddedMsg.length();
+	size_t paddedMsgBitLen = paddedMsgByteLen * 8;
+	
+	int pmblMod512 = paddedMsgBitLen % 512;
+	int zeroBits = 448 - pmblMod512;
+	if (zeroBits < 0) zeroBits += 512;
+
+	if (zeroBits % 8)
+	{
+		return false;
 	}
+	int zeroBytes = (zeroBits / 8);
+	while (zeroBytes-- > 0)
+	{
+		paddedMsg += (byte)0x0;
+	}
+
+
+	if (!bIncludeLen)
+	{
+		// For testing purposes, we want to bypass adding the final length field,
+		// so that we can pass an input message of a length that needs no padding.
+		// SHA-1 will still append the length.
+		paddedMsgBitLen = paddedMsg.length() * 8;
+		return (paddedMsgBitLen % 448) ? false : true;
+	}
+
+	// Prepare the original message length bytes
+	byte oml[sizeof(int64_t)]{ 0 };
+	io_utils::int64ToBytesBE(origMLBits, oml, sizeof(oml));
+
+	for (size_t ii = 0; ii < sizeof(oml); ++ii)
+	{
+		paddedMsg += oml[ii];
+	}
+
+	paddedMsgBitLen = paddedMsg.length() * 8;
+	return (paddedMsgBitLen % 512) ? false : true;
+}
+
+static void _ComputeMDPadding(const byte_string& msg, byte_string& padding)
+{
+	// Just appends the original message length as a 64-bit BE integer.
+	padding.clear();
+
+	int64_t origMLBits = msg.length() * 8;
+
+	// Prepare the original message length bytes
+	byte oml[sizeof(int64_t)]{ 0 };
+	io_utils::int64ToBytesBE(origMLBits, oml, sizeof(oml));
+
+	for (size_t ii = 0; ii < sizeof(oml); ++ii)
+	{
+		padding += oml[ii];
+	}
+}
+
+bool Challenges::Set4Ch29()
+{
+
+	const byte_string origString = reinterpret_cast<byte*>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123");
+	byte_string padding;
+	_ComputeMDPadding(origString, padding);
+
+	// To verify we are using the same padding, we need the padded string minus the length bytes at the end
+	_DisplaySHA1(origString.c_str(), origString.length());
+	//_DisplaySHA1(paddedMsgMinusLength.c_str(), paddedMsgMinusLength.length());
 
 	return true;
 }

@@ -152,6 +152,7 @@
     <ClInclude Include="aes.h" />
     <ClInclude Include="backend.h" />
     <ClInclude Include="challenges.h" />
+    <ClInclude Include="n.h" />
     <ClInclude Include="RNG.h" />
     <ClInclude Include="sha1.h" />
     <ClInclude Include="sha1_test.h" />
@@ -168,7 +169,9 @@
     <ClCompile Include="challenges2.cpp" />
     <ClCompile Include="challenges3.cpp" />
     <ClCompile Include="challenges4.cpp" />
+    <ClCompile Include="challenges5.cpp" />
     <ClCompile Include="cryptopals.cpp" />
+    <ClCompile Include="mathutils.cpp" />
     <ClCompile Include="RNG.cpp" />
     <ClCompile Include="sha1.cpp" />
     <ClCompile Include="sha1_test.cpp" />

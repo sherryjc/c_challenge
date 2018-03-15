@@ -17,6 +17,7 @@ namespace Challenges {
 	bool Set1Ch7z();
 	bool Set1Ch8();
 	bool Set1Ch8a();
+
 	bool Set2Ch10();
 	bool Set2Ch11();
 	bool Set2Ch12();
@@ -24,16 +25,22 @@ namespace Challenges {
 	bool Set2Ch14();
 	bool Set2Ch15();
 	bool Set2Ch16();
+
 	bool Set3Ch17();
 	bool Set3Ch18();
 	bool Set3Ch19();
 	bool Set3Ch20();
 	bool Set3Ch21();
 	bool Set3Ch22();
+
 	bool Set4Ch25();
 	bool Set4Ch26();
 	bool Set4Ch27();
 	bool Set4Ch28();
+	bool Set4Ch29();
+
+	bool Set5Ch33();
+	bool Set5Ch34();
 }
 
 

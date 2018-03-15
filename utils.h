@@ -1,11 +1,11 @@
 #pragma once
-#ifndef UTILS_H
-#define UTILS_H
 
 #include "stdafx.h"
 
 using byte = unsigned char;
 using byte_string = std::basic_string<byte>;
+
+class N;
 
 //typedef unsigned char byte;
 typedef int word4;    // assuming sizeof(int) = 4; handle this 
@@ -46,12 +46,11 @@ namespace io_utils {
 	size_t nBytesCompare(const byte* p1, const byte* p2, size_t nMax);
 
 	// Big-endian
-	void int64ToBytesBE(int64_t paramInt, byte* pBytes);
+	void int64ToBytesBE(int64_t paramInt, byte* pBytes, size_t byteCnt);
 	// Little-endian
-	void int64ToBytesLE(int64_t paramInt, byte* pBytes);
+	void int64ToBytesLE(int64_t paramInt, byte* pBytes, size_t byteCnt);
 
 	bool GetCurrentTimeUnixFmt(int64_t *pUnixTime);
-
 
 	void logError(const char* str);
 }
@@ -100,7 +99,19 @@ namespace crypto_utils {
 
 	size_t paddedSize(size_t inpSz, size_t blkSz);
 	bool stripPKCS7Padding(const std::string& str, std::string& outStr, size_t blockSize);
-
 }
 
-#endif // UTILS_H
+namespace math_utils
+{
+	int modexp(int b, int e, int p);   // b^e mod p    (b=base, e=exponent)
+
+	// Large-number support
+
+	// result = a mod m
+	void mod(const N& a, const N& m, N& result);
+
+	// result = (b ^ e) mod m
+	void modexp(const N& b, const N& e, const N& m, N& result);
+}
+
+

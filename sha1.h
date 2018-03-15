@@ -9,6 +9,8 @@
 
 #include "stdint.h"
 
+constexpr size_t kDigestSize = 20;
+
 typedef struct
 {
     uint32_t state[5];
@@ -32,7 +34,7 @@ void SHA1Update(
     );
 
 void SHA1Final(
-    unsigned char digest[20],
+    unsigned char digest[kDigestSize],
     SHA1_CTX * context
     );
 

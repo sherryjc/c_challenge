@@ -243,16 +243,20 @@ size_t io_utils::nBytesCompare(const byte* p1, const byte* p2, size_t nMax)
 }
 
 // Big-endian
-void io_utils::int64ToBytesBE(int64_t paramInt, byte* pBytes)
+void io_utils::int64ToBytesBE(int64_t paramInt, byte* pBytes, size_t byteCnt)
 {
+	if (byteCnt < 8) return;
+
 	for (int i = 0; i < 8; i++) {
-		pBytes[8 - i] = static_cast<byte>(paramInt >> (i * 8));
+		pBytes[7 - i] = static_cast<byte>(paramInt >> (i * 8));
 	}
 }
 
 // Little-endian
-void io_utils::int64ToBytesLE(int64_t paramInt, byte* pBytes)
+void io_utils::int64ToBytesLE(int64_t paramInt, byte* pBytes, size_t byteCnt)
 {
+	if (byteCnt < 8) return;
+
 	for (int i = 0; i < 8; i++) {
 		pBytes[i] = static_cast<byte>(paramInt >> (i * 8));
 	}

@@ -45,6 +45,9 @@
     <ClInclude Include="sha1_test.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="n.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -87,6 +90,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sha1_test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mathutils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="challenges5.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

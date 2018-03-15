@@ -837,12 +837,12 @@ void Aes::ResetStream()
 
 void Aes::SetNonce(int64_t nonce)
 {
-	io_utils::int64ToBytesLE(nonce, &m_ctrArray[0]);
+	io_utils::int64ToBytesLE(nonce, &m_ctrArray[0], _countof(m_ctrArray));
 }
 
 void Aes::SetBlkCtr(int64_t blkCtr)
 {
-	io_utils::int64ToBytesLE(blkCtr, &m_ctrArray[8]);
+	io_utils::int64ToBytesLE(blkCtr, &m_ctrArray[8], _countof(m_ctrArray)-8);
 }
 
 void Aes::IncrStreamCtr()

@@ -123,18 +123,40 @@ public:
 	void DumpAll();				// Dump all information for this person
 
 	// data members
+	std::string m_name;
+
 	int m_p{ 0 };
 	int m_g{ 0 };
 	int m_secret{ 0 };   // a or b, random in [0,p)
 	int m_g_exp_own{ 0 };
 	int m_g_exp_other{ 0 };
 	int m_dh_key{ 0 };
-	std::string m_name;
 	byte_string m_aes_key;
 	byte_string m_recv_msg_encr; // Last received message - ciphertext
 	byte_string m_recv_msg_decr; // Last received message - plaintext
 
 	static const size_t c_kAESblockSz = 16;
+};
+
+class Attacker {
+public:
+	Attacker(const std::string& name);
+	~Attacker() {};
+
+	void InterceptInit(Person& from, Person& to, int p, int g);
+	void InterceptMsg(Person& from, Person& to, const byte_string& msg);
+
+	std::string m_name;
+
+	int m_p{ 0 };
+	int m_g{ 0 };
+	int m_ga{ 0 };   // g^a
+	int m_gb{ 0 };   // g^b
+	int m_dh_keya{ 0 };
+	int m_dh_keyb{ 0 };
+	byte_string m_aes_keya;
+	byte_string m_aes_keyb;
+
 };
 
 class Network {
@@ -143,56 +165,56 @@ public:
 	static void InitConversation(Person& from, Person& to, int p, int g);
 	static void SendMsg(Person& from, Person& to, const byte_string& msg);
 	static void RespMsg(Person& from, Person& to, const byte_string& msg);
-
-	void SetInfiltrated(bool b) { c_bInfiltrated = b; }
-
-	static bool c_bInfiltrated;
+	static void SetAttacker(Attacker* pAttacker);
+	static Attacker* c_pAttacker;
 };
-bool Network::c_bInfiltrated = false;
+
+Attacker* Network::c_pAttacker = nullptr;
 
 void Network::InitConversation(Person& from, Person& to, int p, int g)
 {
-	if (!c_bInfiltrated)
+	if (c_pAttacker)
 	{
-		from.Init(p, g);
-
-		// "From" sends m, p, gx to "To"
-		to.Init(from.m_p, from.m_g, from.m_g_exp_own);
-
-		// "To" responds with its gx so "From" can complete its initialization
-		from.CompleteInit(to.m_g_exp_own);
-	}
-	else
-	{
-
+		c_pAttacker->InterceptInit(from, to, p, g);
+		return;
 	}
 
+	from.Init(p, g);
+
+	// "From" sends p, g, gx to "To"
+	to.Init(from.m_p, from.m_g, from.m_g_exp_own);
+
+	// "To" responds with its gx so "From" can complete its initialization
+	from.CompleteInit(to.m_g_exp_own);
 }
 
 void Network::SendMsg(Person& from, Person& to, const byte_string& msg)
 {
-	if (!c_bInfiltrated)
+	if (c_pAttacker)
 	{
-		from.SendMsg(to, msg);
-		to.RecvMsg();
+		c_pAttacker->InterceptMsg(from, to, msg);
+		return;
 	}
-	else
-	{
 
-	}
+	from.SendMsg(to, msg);
+	to.RecvMsg();
 }
 
 void Network::RespMsg(Person& from, Person& to, const byte_string& msg)
 {
-	if (!c_bInfiltrated)
+	if (c_pAttacker)
 	{
-		from.RespMsg(to, msg);
-		to.RecvMsg();
+		c_pAttacker->InterceptMsg(from, to, msg);  // No difference between send and response for attacker
+		return;
 	}
-	else
-	{
 
-	}
+	from.RespMsg(to, msg);
+	to.RecvMsg();
+}
+
+void Network::SetAttacker(Attacker* pAttacker)
+{
+	c_pAttacker = pAttacker;
 }
 
 
@@ -330,13 +352,48 @@ void Person::DumpAll()
 	std::cout << std::endl;
 }
 
+Attacker::Attacker(const std::string& name)
+	:m_name(name)
+{
+}
+
+
+void Attacker::InterceptInit(Person& from, Person& to, int p, int g)
+{
+	std::cout << "Attacker is listening! Not modifying anything yet." << std::endl;
+
+	m_p = p;
+	m_g = g;
+
+	from.Init(p, g);
+
+	// "From" sends p, g, gx to "To"
+	to.Init(from.m_p, from.m_g, from.m_g_exp_own);
+
+	// "To" responds with its gx so "From" can complete its initialization
+	from.CompleteInit(to.m_g_exp_own);
+
+}
+
+void Attacker::InterceptMsg(Person& from, Person& to, const byte_string& msg)
+{
+	std::cout << "Attacker passing along message from " << from.m_name << " to " << to.m_name << std::endl;
+
+	from.SendMsg(to, msg);
+	to.RecvMsg();
+}
+
+
 static Network s_Network;
 static Person Alice("Alice");
 static Person Bob("Bob");
-static Person Malice("Malice");
+static Attacker Malice("Malice");
 
 bool Challenges::Set5Ch34()
 {
+	// Set whether or not an MITM attack is taking place
+	Network::SetAttacker(&Malice);
+
 	Network::InitConversation(Alice, Bob, 37, 5);  // p, g
 
 	byte_string strAlice = reinterpret_cast<byte*>("Hello Bob, this is Alice!");
@@ -359,7 +416,6 @@ bool Challenges::Set5Ch34()
 
 	Bob.DisplayLastRecv();
 	Alice.DisplayLastRecv();
-
 
 	return true;
 }

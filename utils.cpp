@@ -316,6 +316,20 @@ void dbg_utils::displayHex(const byte* pBytes, size_t cnt)
 	std::cout << std::endl;
 }
 
+void dbg_utils::displayHex(const byte_string& str)
+{
+	dbg_utils::displayHex(str.c_str(), str.length());
+}
+
+void dbg_utils::displayByteStrAsCStr(const byte_string& str)
+{
+	// Just handles the fact that byte strings are not null terminated
+	byte_string dispStr = str;
+	byte* pRawBytes = const_cast<byte *>(dispStr.c_str());
+	pRawBytes[dispStr.length() - 1] = '\0';
+	std::cout << pRawBytes << std::endl;
+}
+
 
 /*****************************************/
 /*    Crypto Utils                       */

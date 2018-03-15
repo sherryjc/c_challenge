@@ -58,6 +58,8 @@ namespace io_utils {
 namespace dbg_utils {
 	void displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt);
 	void displayHex(const byte* pBytes, size_t cnt);
+	void displayHex(const byte_string& str);
+	void displayByteStrAsCStr(const byte_string& str);
 }
 
 namespace crypto_utils {

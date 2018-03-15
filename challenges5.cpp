@@ -97,53 +97,153 @@ bool Challenges::Set5Ch33()
 	return true;
 }
 
-typedef struct person_t {
-	int p;
-	int g;
-	int secret;   // a or b, random in [0,p)
-	int g_exp_own;
-	int g_exp_other;
-	int dh_key;
-	byte_string aes_key;
-	byte_string recv_msg_encr; // Last received message - ciphertext
-	byte_string recv_msg_decr; // Last received message - plaintext
-} Person;
 
-Person Alice;
-Person Bob;
-Person Malice;
-
-void _Send(Person& rec, int p, int g, int gx)
+static void s_Assert(bool bCond, std::string msg)
 {
-	rec.p = p;
-	rec.g = g;
-	rec.g_exp_other = gx;
-}
-
-void _Send(Person& rec, int gx)
-{
-	rec.g_exp_other = gx;
-}
-
-void _DH_to_AES(int dh_key, byte_string& aes_key)
-{
-	aes_key.clear();
-	static const size_t kAESblockSz = 16;
-	char result[kDigestSize + 1];
-	char buf[sizeof(int)+1];
-	sprintf_s(buf, _countof(buf), "%4d", dh_key);
-	SHA1(result, buf, sizeof(int));
-	for (size_t ii = 0; ii < kAESblockSz; ++ii)
+	if (!bCond)
 	{
-		aes_key += result[ii];
+		std::cout << "An error occurred: " << msg << std::endl;
 	}
 }
 
-void _SendMsg(Person& from, Person& to, const byte_string& msg, bool bIncludePrev)
+
+class Person {
+public:
+	Person(const std::string& name);
+	~Person() {}
+
+	void Init(int p, int g, int gx=0);
+	void CompleteInit(int gx);
+	void ComputeAes();
+	void SendMsg(Person& to, const byte_string& msg, bool bIncludePrev=false);
+	void RespMsg(Person& to, const byte_string& msg);
+	void RecvMsg();				// Prod receiver to check inbox
+	void ExtractIv(byte_string& iv);
+	void DisplayLastRecv();		// Display last received message
+	void DumpAll();				// Dump all information for this person
+
+	// data members
+	int m_p{ 0 };
+	int m_g{ 0 };
+	int m_secret{ 0 };   // a or b, random in [0,p)
+	int m_g_exp_own{ 0 };
+	int m_g_exp_other{ 0 };
+	int m_dh_key{ 0 };
+	std::string m_name;
+	byte_string m_aes_key;
+	byte_string m_recv_msg_encr; // Last received message - ciphertext
+	byte_string m_recv_msg_decr; // Last received message - plaintext
+
+	static const size_t c_kAESblockSz = 16;
+};
+
+class Network {
+public:
+	Network() { }
+	static void InitConversation(Person& from, Person& to, int p, int g);
+	static void SendMsg(Person& from, Person& to, const byte_string& msg);
+	static void RespMsg(Person& from, Person& to, const byte_string& msg);
+
+	void SetInfiltrated(bool b) { c_bInfiltrated = b; }
+
+	static bool c_bInfiltrated;
+};
+bool Network::c_bInfiltrated = false;
+
+void Network::InitConversation(Person& from, Person& to, int p, int g)
+{
+	if (!c_bInfiltrated)
+	{
+		from.Init(p, g);
+
+		// "From" sends m, p, gx to "To"
+		to.Init(from.m_p, from.m_g, from.m_g_exp_own);
+
+		// "To" responds with its gx so "From" can complete its initialization
+		from.CompleteInit(to.m_g_exp_own);
+	}
+	else
+	{
+
+	}
+
+}
+
+void Network::SendMsg(Person& from, Person& to, const byte_string& msg)
+{
+	if (!c_bInfiltrated)
+	{
+		from.SendMsg(to, msg);
+		to.RecvMsg();
+	}
+	else
+	{
+
+	}
+}
+
+void Network::RespMsg(Person& from, Person& to, const byte_string& msg)
+{
+	if (!c_bInfiltrated)
+	{
+		from.RespMsg(to, msg);
+		to.RecvMsg();
+	}
+	else
+	{
+
+	}
+}
+
+
+Person::Person(const std::string& name)
+	:m_name(name)
+{}
+
+void Person::Init(int p, int g, int gx)
+{
+	m_p = p;
+	m_g = g;
+	m_g_exp_other = gx;   // May be 0 if we are the first to init
+
+	// Compute our own values
+	m_secret = getRandomNumber() % m_p;
+	m_g_exp_own = modexp(m_g, m_secret, m_p);
+
+	if (0 != m_g_exp_other)   // == 0: we need to wait until the other side has init'd
+	{
+		CompleteInit(m_g_exp_other);
+	}
+}
+
+void Person::CompleteInit(int gx)
+{
+	s_Assert(gx != 0, "CompleteInit");
+
+	m_g_exp_other = gx;   
+	m_dh_key = modexp(m_g_exp_other, m_secret, m_p);
+	ComputeAes();
+}
+
+void Person::ComputeAes()
+{
+	s_Assert(m_dh_key > 0, "DH==0 in ComputeAes");
+	m_aes_key.clear();
+	char result[kDigestSize + 1];
+	char buf[sizeof(int) + 1];
+	sprintf_s(buf, _countof(buf), "%4d", m_dh_key);
+	SHA1(result, buf, sizeof(int));
+	for (size_t ii = 0; ii < c_kAESblockSz; ++ii)
+	{
+		m_aes_key += result[ii];
+	}
+}
+
+void Person::SendMsg(Person& to, const byte_string& msg, bool bIncludePrev)
 {
 	Aes aes(128);
 	aes.SetMode(Aes::CBC);
-	aes.SetKey(from.aes_key.c_str(), from.aes_key.length());
+	aes.SetKey(m_aes_key.c_str(), m_aes_key.length());
 	aes.SetInitializationVector(Aes::RANDOM);
 	byte_string iv;
 	aes.InitializationVector(iv);
@@ -153,79 +253,113 @@ void _SendMsg(Person& from, Person& to, const byte_string& msg, bool bIncludePre
 	if (bIncludePrev)
 	{
 		sendMsg.append(reinterpret_cast<byte*>(":"));
-		sendMsg.append(from.recv_msg_decr);
+		// Handle the fact that append wants a null-terminated c-style string
+		byte_string returnMsg = m_recv_msg_decr;
+		byte* pBytes = const_cast<byte*>(returnMsg.c_str());
+		pBytes[returnMsg.length() - 1] = '\0';
+		sendMsg.append(returnMsg);
 	}
-	// The IV is being sent as a part of the message just to have a random parameter 
-	// (which the attacker will change in a later step).
-	sendMsg.append(iv);
 	aes.SetInput(sendMsg, true /*pad*/);
-
 	aes.Encrypt();
+	byte_string encryptedMsg;
+	aes.ResultStr(encryptedMsg);
+	// Append the initialization vector we used
+	encryptedMsg.append(iv);
 
 	// Here is where the message gets "sent" - it shows up in the encrypted in-box of the receiver
-	aes.ResultStr(to.recv_msg_encr);
+	to.m_recv_msg_encr = encryptedMsg;
 }
 
-void _RecvMsg(Person& rec)
+void Person::RespMsg(Person& to, const byte_string& msg)
+{
+	SendMsg(to, msg, true);
+}
+
+void Person::RecvMsg()
 {
 	// Receiver checks his/her in-box, decrypts what's there
-	if (rec.recv_msg_encr.length() == 0) return;
+	if (m_recv_msg_encr.length() == 0) return;
 
 	Aes aes(128);
 	aes.SetMode(Aes::CBC);
-	aes.SetKey(rec.aes_key.c_str(), rec.aes_key.length());
-	aes.Decrypt();
-	aes.ResultStr(rec.recv_msg_decr);
+	aes.SetKey(m_aes_key.c_str(), m_aes_key.length());
 
-	// Discard the encrypted message
-	rec.recv_msg_decr.clear();
+	// Strip off the initialization vector from the end of the sent message (before decrypting)
+	byte_string iv;
+	ExtractIv(iv);
+	aes.SetInitializationVector(iv);
+	aes.SetInput(m_recv_msg_encr);  // Note iv has now been stripped off
+
+	aes.Decrypt();
+	aes.ResultStr(m_recv_msg_decr);
 }
 
+void Person::ExtractIv(byte_string& iv)
+{
+	size_t len = m_recv_msg_encr.length();
+	size_t startIdx = len - c_kAESblockSz;
+	iv = m_recv_msg_encr.substr(startIdx, c_kAESblockSz);
+	m_recv_msg_encr = m_recv_msg_encr.substr(0, startIdx);
+}
+
+void Person::DisplayLastRecv()
+{
+	std::cout << std::endl << "Last message " << m_name << " received: " << std::endl;
+	dbg_utils::displayByteStrAsCStr(m_recv_msg_decr);
+	std::cout << std::endl;
+
+}
+
+void Person::DumpAll()
+{
+	std::cout << "Name:           " << m_name << std::endl;
+	std::cout << "p =             " << m_p << std::endl;
+	std::cout << "g =             " << m_g << std::endl;
+	std::cout << "secret =        " << m_secret << std::endl;
+	std::cout << "my g^x =        " << m_g_exp_own << std::endl;
+	std::cout << "other g^x =     " << m_g_exp_other << std::endl;
+	std::cout << "DH Key =        " << m_dh_key << std::endl;
+	std::cout << "AES Key =       "; 
+	dbg_utils::displayHex(m_aes_key);
+	std::cout << std::endl;
+	std::cout << "Rcv msg (C) =   ";
+	dbg_utils::displayHex(m_recv_msg_encr);
+	std::cout << std::endl;
+	std::cout << "Rcv msg (P) =   ";
+	dbg_utils::displayByteStrAsCStr(m_recv_msg_decr);
+	std::cout << std::endl;
+}
+
+static Network s_Network;
+static Person Alice("Alice");
+static Person Bob("Bob");
+static Person Malice("Malice");
 
 bool Challenges::Set5Ch34()
 {
-	Alice.p = 37;
-	Alice.g = 5;
-	Alice.secret = getRandomNumber() % Alice.p;
-	Alice.g_exp_own = modexp(Alice.g, Alice.secret, Alice.p);
-	_Send(Bob, Alice.p, Alice.g, Alice.g_exp_own);
-
-	Bob.secret = getRandomNumber() % Bob.p;
-	Bob.g_exp_own = modexp(Bob.g, Bob.secret, Bob.p);
-	_Send(Alice, Bob.g_exp_own);
-
-	Alice.dh_key = modexp(Alice.g_exp_other, Alice.secret, Alice.p);
-	Bob.dh_key = modexp(Bob.g_exp_other, Bob.secret, Bob.p);
-
-	// Sanity check
-	if (Alice.dh_key != Bob.dh_key)
-	{
-		std::cout << "Something has gone horribly wrong with the DH Session Key" << std::endl;
-	}
-
-	// Alice and Bob each compute the AES key
-	_DH_to_AES(Alice.dh_key, Alice.aes_key);
-	_DH_to_AES(Bob.dh_key, Bob.aes_key);
-
-	// Another sanity check
-	if (Alice.aes_key != Bob.aes_key)
-	{
-		std::cout << "Something has gone horribly wrong with the AES Session Key" << std::endl;
-	}
+	Network::InitConversation(Alice, Bob, 37, 5);  // p, g
 
 	byte_string strAlice = reinterpret_cast<byte*>("Hello Bob, this is Alice!");
-	_SendMsg(Alice, Bob, strAlice, false);
+	Network::SendMsg(Alice, Bob, strAlice);
 
-	_RecvMsg(Bob);
-
-	// Bob sends a response, and includes a copy of Alice's message (the final bool arg)
+	// Bob sends a response, which includes a copy of Alice's last message
 	byte_string strBob = reinterpret_cast<byte*>("Hello Alice, this is Bob! I just got this from you:");
-	_SendMsg(Bob, Alice, strBob, true);
+	Network::RespMsg(Bob, Alice, strBob);
 
-	_RecvMsg(Alice);
+	Bob.DisplayLastRecv();
+	Alice.DisplayLastRecv();
 
-	std::cout << "Last message Bob received: " << Bob.recv_msg_decr.c_str() << std::endl;
-	std::cout << "Last message Alice received: " << Alice.recv_msg_decr.c_str() << std::endl;
+	// Continue the conversation
+	strAlice = reinterpret_cast<byte*>("This is what I have to say - AAAAA");
+	Network::SendMsg(Alice, Bob, strAlice);
+
+	// Bob sends a response, which includes a copy of Alice's last message
+	strBob = reinterpret_cast<byte*>("B - You said, and I agree: ");
+	Network::RespMsg(Bob, Alice, strBob);
+
+	Bob.DisplayLastRecv();
+	Alice.DisplayLastRecv();
+
 
 	return true;
 }

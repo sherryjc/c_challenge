@@ -40,7 +40,7 @@ namespace Challenges {
 	bool Set4Ch29();
 
 	bool Set5Ch33();
-	bool Set5Ch34();
+	bool Set5Ch34(int arg);
 }
 
 

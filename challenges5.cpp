@@ -112,7 +112,7 @@ public:
 	Person(const std::string& name);
 	~Person() {}
 
-	void Init(int p, int g, int gx=0);
+	void Init(int p, int g, int gx=-1);
 	void CompleteInit(int gx);
 	void ComputeAes();
 	void SendMsg(Person& to, const byte_string& msg, bool bIncludePrev=false);
@@ -155,7 +155,7 @@ public:
 	int m_g{ 0 };
 	int m_dh_key{ 0 };
 	byte_string m_aes_key;
-
+	int m_nAttack{ 0 };
 };
 
 class Network {
@@ -231,7 +231,7 @@ void Person::Init(int p, int g, int gx)
 	m_secret = getRandomNumber() % m_p;
 	m_g_exp_own = modexp(m_g, m_secret, m_p);
 
-	if (0 != m_g_exp_other)   // == 0: we need to wait until the other side has init'd
+	if (-1 != m_g_exp_other)   // -1: we need to wait until the other side has init'd
 	{
 		CompleteInit(m_g_exp_other);
 	}
@@ -239,7 +239,7 @@ void Person::Init(int p, int g, int gx)
 
 void Person::CompleteInit(int gx)
 {
-	s_Assert(gx != 0, "CompleteInit");
+	// s_Assert(gx != 0, "CompleteInit");
 
 	m_g_exp_other = gx;   
 	m_dh_key = modexp(m_g_exp_other, m_secret, m_p);
@@ -368,25 +368,121 @@ void Attacker::InterceptInit(Person& from, Person& to, int p, int g)
 {
 	std::cout << "Attacker \"" << m_name << "\" is listening!" << std::endl;
 
+	// Note: in comments here, "from" = A, "to" = B
+
+	// Hold onto the original correct values for p and g
 	m_p = p;
 	m_g = g;
+	from.Init(p, g);  // These are always set correctly at A's end - not under M's control
 
-	from.Init(p, g);
+	switch (m_nAttack)
+	{
 
-	// Let "from" = A, "to" = B
-	// Instead of sending  p, g, gx to B, send p, g, p to B
-	to.Init(m_p, m_g, m_p);
+	case 1:
+	{
+		// Attack 1 - Ch5-34
+		// ==> Instead of passing on ga and gb, send p
+		std::cout << "Attacker is substituting p for ga, gb" << std::endl;
 
-	// B responds with its gx so A can complete its initialization
-	// But instead we pass back p again
-	from.CompleteInit(m_p);
+		to.Init(m_p, m_g, m_p);
+		from.CompleteInit(m_p);
+		//
+		// g^a = p   g^b = p
+		// g^ab = p^b  g^ba = p^a
+		// g^ab mod p = g^ba mod p = 0
+		// At this point we can conclude:
+		//   - The common DH Key computed by A and B will be 0
+		//   - The common AES key computed by A and B will be SHA1(0)
+		// So we just compute SHA1(0) and hold onto it
+		m_dh_key = 0;
+		ComputeAes();
+	}
+	break;
 
-	// At this point we can conclude:
-	//   - The common DH Key computed by A and B will be 0
-	//   - The common AES key computed by A and B will be SHA1(0)
-	// So we just compute SHA1(0) and hold onto it
-	m_dh_key = 0;  // not really necessary, was set to 0 in ctor, but let's be clear
-	ComputeAes();
+	case 2:
+	{
+		// Attack 2 - Ch5-35
+		// ==> set g = 1
+		std::cout << "Attacker is substituting 1 for g" << std::endl;
+		// g^a = 1  g^b = 1
+		// g^ab =1 g^ba = 1
+		// g^ab mod p = g^ba mod p = 1
+		// At this point we can conclude:
+		//   - The common DH Key computed by A and B will be 1
+		//   - The common AES key computed by A and B will be SHA1(1)
+		// So we just compute SHA1(1) and hold onto it
+		to.Init(m_p, 1, 1);
+		from.CompleteInit(1);
+		m_dh_key = 1;
+		ComputeAes();
+	}
+	break;
+
+	case 3:
+	{
+		// Attack 3 - Ch5-35 
+		// ==> set g = p
+		std::cout << "Attacker is substituting p for g" << std::endl;
+		to.Init(m_p, m_p, 0);
+		// "To" responds with its gx so "From" can complete its initialization
+		from.CompleteInit(to.m_g_exp_own);  // should be 0, but we could set explicitly
+
+		// g^a = p^a   g^b = p^b
+		// g^a mod p = g^b mod p = 0
+		// g^ab = p^ab g^ba = p^ba
+		// g^ab mod p = g^ba mod p = 0
+		// At this point we can conclude:
+		//   - The common DH Key computed by A and B will be 0
+		//   - The common AES key computed by A and B will be SHA1(0)
+		// So we just compute SHA1(0) and hold onto it
+		m_dh_key = 0;
+		ComputeAes();
+	}
+	break;
+
+	case 4:
+	{
+		// Attack 4 - Ch5-35 
+		// ==> set g = p-1
+		std::cout << "Attacker is substituting p-1 for g" << std::endl;
+
+		// We need to compute g^x mod p for a in [0, p) unknown
+		// (p-1) ^ 1 mod p = p-1
+		// (p-1) ^ 2 mod p = (p^2 - 2p + 1) mod p = p^2 mod p - 2p mod p + 1 mod p = 1 
+		// (p-1) ^ 3 mod p = (p-1)(p-1)^2 mod p = p-1
+		// (p-1) ^ 4 mod p = (p-1)^2(p-1)^2 mod p = 1 mod p = 1
+		// So:
+		//    g^x mod p = { p-1  for x odd,  1 for x even } 
+		//
+		// Pass (g^a mod p) = 1 to B as if we knew a were even
+		// Since the product a*b is even if a is even, we know
+		// B will compute g^ab mod p = 1, independent of the choice of b.
+		// Then we complete the deception by passing back (g^b mod p) = 1
+		// to A, so that A will compute g^ab mod p = 1 independent of a.
+
+		to.Init(m_p, m_p - 1, 1);
+		// "To" responds with its gx so "From" can complete its initialization
+		from.CompleteInit(1);  
+
+		//   - The common DH Key computed by A and B will be 1
+		//   - The common AES key computed by A and B will be SHA1(1)
+		// So we just compute SHA1(1) and hold onto it
+		m_dh_key = 1;
+		ComputeAes();
+	}
+	break;
+	case 0:
+	default:
+	{
+		// Pass-through case, no alteration or examination of the message
+		to.Init(from.m_p, from.m_g, from.m_g_exp_own);
+		// B responds with its gx so A can complete its initialization
+		from.CompleteInit(to.m_g_exp_own);
+	}
+	break;
+
+	}
+
 }
 
 void Attacker::InterceptMsg(Person& from, Person& to, const byte_string& msg)
@@ -394,7 +490,10 @@ void Attacker::InterceptMsg(Person& from, Person& to, const byte_string& msg)
 	std::cout << "Attacker passing along message from " << from.m_name << " to " << to.m_name << std::endl;
 
 	from.SendMsg(to, msg);
-	ExamineMsg(to.m_recv_msg_encr);
+	if (m_nAttack != 0)
+	{
+		ExamineMsg(to.m_recv_msg_encr);
+	}
 
 	to.RecvMsg();
 }
@@ -439,9 +538,10 @@ static Person Alice("Alice");
 static Person Bob("Bob");
 static Attacker Malice("Malice");
 
-bool Challenges::Set5Ch34()
+bool Challenges::Set5Ch34(int arg)   // Also Set5Ch35() for different values of arg
 {
 	// Set whether or not an MITM attack is taking place
+	Malice.m_nAttack = arg;
 	Network::SetAttacker(&Malice);
 
 	Network::InitConversation(Alice, Bob, 37, 5);  // p, g

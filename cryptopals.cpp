@@ -9,9 +9,14 @@ int main(int argc, char* argv[])
 	// printf("Called with %d arguments", argc);
 	bool bRc = true;
 	int testToRun = 0;
+	int testArg = 0;
 	if (argc > 1) {
 		testToRun = atoi(argv[1]);
 	}
+	if (argc > 2) {
+		testArg = atoi(argv[2]);
+	}
+
 	switch (testToRun) {
 	case 1:
 		bRc &= Challenges::Set1Ch1();
@@ -95,11 +100,11 @@ int main(int argc, char* argv[])
 		bRc &= Challenges::Set5Ch33();
 		break;
 	case 34:
-		bRc &= Challenges::Set5Ch34();
+		bRc &= Challenges::Set5Ch34(testArg);
 		break;
 	case 0:
 	default:
-		bRc &= Challenges::Set5Ch34();
+		bRc &= Challenges::Set5Ch34(testArg);
 		break;
 	}
 

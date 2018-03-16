@@ -1,2 +1,2 @@
-echo ./x64/Debug/cryptopals.exe $1
-./x64/Debug/cryptopals.exe $1
+echo ./x64/Debug/cryptopals.exe $1 $2
+./x64/Debug/cryptopals.exe $1 $2

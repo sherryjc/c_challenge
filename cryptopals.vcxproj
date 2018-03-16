@@ -155,7 +155,7 @@
     <ClInclude Include="n.h" />
     <ClInclude Include="RNG.h" />
     <ClInclude Include="sha1.h" />
-    <ClInclude Include="sha1_test.h" />
+    <ClInclude Include="sha256.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="utils.h" />
@@ -175,6 +175,7 @@
     <ClCompile Include="RNG.cpp" />
     <ClCompile Include="sha1.cpp" />
     <ClCompile Include="sha1_test.cpp" />
+    <ClCompile Include="sha256.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>

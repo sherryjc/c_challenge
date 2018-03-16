@@ -8,7 +8,6 @@
 #include "aes.h"
 #include "backend.h"
 #include "RNG.h"
-#include "sha1_test.h"
 #include "sha1.h"
 
 using namespace io_utils;

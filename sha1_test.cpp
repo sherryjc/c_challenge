@@ -5,7 +5,6 @@ SHA1 tests by Philip Woolford <woolford.philip@gmail.com>
 
 #include "sha1.h"
 #include "stdafx.h"
-#include "sha1_test.h"
 
 #define SUCCESS 0
 
@@ -176,6 +175,7 @@ namespace SHA1_Test
 		func();
 	}
 
+	void RunAll();
 }
 
 void SHA1_Test::RunAll()

@@ -43,6 +43,7 @@ namespace io_utils {
 	byte* byteCopyRepeated(byte* pDst, size_t szDst, const char c, size_t szSrc);
 
 	bool byteCompare(const byte* p1, const byte* p2, size_t n);
+	bool byteCompare(const byte_string& s1, const byte_string& s2);
 	size_t nBytesCompare(const byte* p1, const byte* p2, size_t nMax);
 
 	// Big-endian

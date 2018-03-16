@@ -145,17 +145,16 @@ public:
 
 	void InterceptInit(Person& from, Person& to, int p, int g);
 	void InterceptMsg(Person& from, Person& to, const byte_string& msg);
+	void ComputeAes();
+	void ExamineMsg(byte_string encrMsg);
 
+	// data
 	std::string m_name;
 
 	int m_p{ 0 };
 	int m_g{ 0 };
-	int m_ga{ 0 };   // g^a
-	int m_gb{ 0 };   // g^b
-	int m_dh_keya{ 0 };
-	int m_dh_keyb{ 0 };
-	byte_string m_aes_keya;
-	byte_string m_aes_keyb;
+	int m_dh_key{ 0 };
+	byte_string m_aes_key;
 
 };
 
@@ -249,7 +248,14 @@ void Person::CompleteInit(int gx)
 
 void Person::ComputeAes()
 {
-	s_Assert(m_dh_key > 0, "DH==0 in ComputeAes");
+	// This assert fires when M tampers with our protocol.
+	// It seems like this would make it obvious that something was wrong.
+	// s_Assert(m_dh_key > 0, "DH==0 in ComputeAes");
+	if (m_dh_key == 0)
+	{
+		std::cout << "Warning: Network tampering detected by " << m_name << std::endl;
+	}
+
 	m_aes_key.clear();
 	char result[kDigestSize + 1];
 	char buf[sizeof(int) + 1];
@@ -326,7 +332,7 @@ void Person::ExtractIv(byte_string& iv)
 
 void Person::DisplayLastRecv()
 {
-	std::cout << std::endl << "Last message " << m_name << " received: " << std::endl;
+	std::cout << std::endl << "Last message " << m_name << " received: " << std::endl << "### ";
 	dbg_utils::displayByteStrAsCStr(m_recv_msg_decr);
 	std::cout << std::endl;
 
@@ -360,19 +366,27 @@ Attacker::Attacker(const std::string& name)
 
 void Attacker::InterceptInit(Person& from, Person& to, int p, int g)
 {
-	std::cout << "Attacker is listening! Not modifying anything yet." << std::endl;
+	std::cout << "Attacker \"" << m_name << "\" is listening!" << std::endl;
 
 	m_p = p;
 	m_g = g;
 
 	from.Init(p, g);
 
-	// "From" sends p, g, gx to "To"
-	to.Init(from.m_p, from.m_g, from.m_g_exp_own);
+	// Let "from" = A, "to" = B
+	// Instead of sending  p, g, gx to B, send p, g, p to B
+	to.Init(m_p, m_g, m_p);
 
-	// "To" responds with its gx so "From" can complete its initialization
-	from.CompleteInit(to.m_g_exp_own);
+	// B responds with its gx so A can complete its initialization
+	// But instead we pass back p again
+	from.CompleteInit(m_p);
 
+	// At this point we can conclude:
+	//   - The common DH Key computed by A and B will be 0
+	//   - The common AES key computed by A and B will be SHA1(0)
+	// So we just compute SHA1(0) and hold onto it
+	m_dh_key = 0;  // not really necessary, was set to 0 in ctor, but let's be clear
+	ComputeAes();
 }
 
 void Attacker::InterceptMsg(Person& from, Person& to, const byte_string& msg)
@@ -380,9 +394,45 @@ void Attacker::InterceptMsg(Person& from, Person& to, const byte_string& msg)
 	std::cout << "Attacker passing along message from " << from.m_name << " to " << to.m_name << std::endl;
 
 	from.SendMsg(to, msg);
+	ExamineMsg(to.m_recv_msg_encr);
+
 	to.RecvMsg();
 }
 
+void Attacker::ExamineMsg(byte_string encrMsg)   // Note - encrMsg not &, working on a copy
+{
+	if (encrMsg.length() == 0) return;
+
+	Aes aes(128);
+	aes.SetMode(Aes::CBC);
+	aes.SetKey(m_aes_key.c_str(), m_aes_key.length());
+
+	// Strip off the initialization vector from the end of the sent message (before decrypting)
+	size_t len = encrMsg.length();
+	size_t startIdx = len - Person::c_kAESblockSz;
+	byte_string iv = encrMsg.substr(startIdx, Person::c_kAESblockSz);
+	encrMsg = encrMsg.substr(0, startIdx);
+	aes.SetInitializationVector(iv);
+	aes.SetInput(encrMsg);  // Note iv has now been stripped off
+
+	aes.Decrypt();
+	byte_string decrMsg;
+	aes.ResultStr(decrMsg);
+	std::cout << "*** " << decrMsg.c_str() << std::endl;
+}
+
+void Attacker::ComputeAes()
+{
+	m_aes_key.clear();
+	char result[kDigestSize + 1];
+	char buf[sizeof(int) + 1];
+	sprintf_s(buf, _countof(buf), "%4d", m_dh_key);
+	SHA1(result, buf, sizeof(int));
+	for (size_t ii = 0; ii < Person::c_kAESblockSz; ++ii)
+	{
+		m_aes_key += result[ii];
+	}
+}
 
 static Network s_Network;
 static Person Alice("Alice");

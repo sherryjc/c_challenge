@@ -153,6 +153,7 @@
     <ClInclude Include="backend.h" />
     <ClInclude Include="challenges.h" />
     <ClInclude Include="n.h" />
+    <ClInclude Include="network.h" />
     <ClInclude Include="RNG.h" />
     <ClInclude Include="sha1.h" />
     <ClInclude Include="sha256.h" />
@@ -172,6 +173,7 @@
     <ClCompile Include="challenges5.cpp" />
     <ClCompile Include="cryptopals.cpp" />
     <ClCompile Include="mathutils.cpp" />
+    <ClCompile Include="network.cpp" />
     <ClCompile Include="RNG.cpp" />
     <ClCompile Include="sha1.cpp" />
     <ClCompile Include="sha1_test.cpp" />

@@ -11,6 +11,7 @@
 #include "aes.h"
 #include "sha256.h"
 #include "network.h"
+#include "hmac.h"
 
 using namespace io_utils;
 using namespace crypto_utils;
@@ -185,6 +186,10 @@ bool Challenges::Set5Ch36()
 	bool bResult = _sha256_test();
 	std::string result = bResult ? "SUCCEEDED" : "FAILED";
 	std::cout << "SHA-256 tests: " <<  result << std::endl;
+
+	HMAC_SHA256_Test();
+
+
 
 	// N = NIST Prime = 15073
 	// g = 2

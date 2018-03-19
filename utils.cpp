@@ -228,7 +228,11 @@ bool io_utils::byteCompare(const byte* p1, const byte* p2, size_t n)
 
 bool io_utils::byteCompare(const byte_string& s1, const byte_string& s2)
 {
-	if (s1.length() != s2.length()) return false;
+	if (s1.length() != s2.length())
+	{
+		// std::cout << "Lengths differ: " << s1.length() << " != " << s2.length() << std::endl;
+		return false;
+	}
 
 	return byteCompare(s1.c_str(), s2.c_str(), s1.length());
 }

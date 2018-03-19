@@ -165,17 +165,17 @@ static bool _sha256_test()
 
 	//void SHA2(const byte_string& text, byte_string& hash, size_t nUpdates)
 
-	byte_string hash_out;
-	SHA2(text1, hash_out);
-	bool b1 = io_utils::byteCompare(hash_out, hash1);
+	byte hash_out[SHA256_BLOCK_SIZE];
+	SHA2(text1.c_str(), text1.length(), hash_out, _countof(hash_out));
+	bool b1 = io_utils::byteCompare(hash_out, hash1.c_str(), SHA256_BLOCK_SIZE);
 	if (!b1) { std::cout << "Test 1 failed" << std::endl; }
 
-	SHA2(text2, hash_out);
-	bool b2 = io_utils::byteCompare(hash_out, hash2);
+	SHA2(text2.c_str(), text2.length(), hash_out, _countof(hash_out));
+	bool b2 = io_utils::byteCompare(hash_out, hash2.c_str(), SHA256_BLOCK_SIZE);
 	if (!b2) { std::cout << "Test 2 failed" << std::endl; }
 
-	SHA2(text3, hash_out, 100000);
-	bool b3 = io_utils::byteCompare(hash_out, hash3);
+	SHA2(text3.c_str(), text3.length(), hash_out, _countof(hash_out), 100000);
+	bool b3 = io_utils::byteCompare(hash_out, hash3.c_str(), SHA256_BLOCK_SIZE);
 	if (!b3) { std::cout << "Test 3 failed" << std::endl; }
 
 	return(b1 && b2 && b3);

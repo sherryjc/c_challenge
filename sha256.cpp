@@ -157,24 +157,20 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 	}
 }
 
-void SHA2(const byte_string& text, byte_string& hash, size_t nUpdates)
+void SHA2(const byte* pText, size_t textLen, byte* pHash, size_t hashLen, size_t nUpdates)
 {
-	byte buf[SHA256_BLOCK_SIZE];
-	SHA256_CTX ctx;
-	hash.clear();
+	if (hashLen < SHA256_BLOCK_SIZE)
+	{
+		std::cout << "Output buffer not big enough" << std::endl;
+		return;
+	}
 
+	SHA256_CTX ctx;
 	sha256_init(&ctx);
-	const byte* pByte = text.c_str();
-	size_t len = text.length();
 	for (size_t idx = 0; idx < nUpdates; ++idx)
 	{
-		sha256_update(&ctx, pByte, len);
+		sha256_update(&ctx, pText, textLen);
 	}
 
-	sha256_final(&ctx, buf);
-	byte* pBuf = buf;
-	for (size_t ii = 0; ii < SHA256_BLOCK_SIZE; ++ii)
-	{
-		hash += *pBuf++;
-	}
+	sha256_final(&ctx, pHash);
 }

@@ -157,7 +157,7 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 	}
 }
 
-void SHA2(const byte* pText, size_t textLen, byte* pHash, size_t hashLen, size_t nUpdates)
+void SHA256(const byte* pText, size_t textLen, byte* pHash, size_t hashLen, size_t nUpdates)
 {
 	if (hashLen < SHA256_BLOCK_SIZE)
 	{
@@ -173,4 +173,11 @@ void SHA2(const byte* pText, size_t textLen, byte* pHash, size_t hashLen, size_t
 	}
 
 	sha256_final(&ctx, pHash);
+}
+
+// Utility to convert from SHA256 digest <-> integer
+void SHA256_conv()
+{
+	unsigned long long int ullongval = ULLONG_MAX;
+
 }

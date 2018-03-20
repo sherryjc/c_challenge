@@ -30,6 +30,7 @@ typedef struct {
 void sha256_init(SHA256_CTX *ctx);
 void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len);
 void sha256_final(SHA256_CTX *ctx, BYTE hash[]);
-void SHA2(const byte* pText, size_t textLen, byte* pHash, size_t hashLen, size_t nUpdates = 1);
+void SHA256(const byte* pText, size_t textLen, byte* pHash, size_t hashLen, size_t nUpdates = 1);
+
 
 #endif   // SHA256_H

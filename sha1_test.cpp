@@ -24,21 +24,21 @@ namespace SHA1_Test
 		void
 	)
 	{
-		char const string[] = "abc";
-		char const expect[] = "a9993e364706816aba3e25717850c26c9cd0d89d";
-		char result[21];
-		char hexresult[41];
+		const byte_string string = reinterpret_cast<byte*>("abc");
+		const byte_string expect = reinterpret_cast<const byte *>("a9993e364706816aba3e25717850c26c9cd0d89d");
+		byte result[21];
+		byte hexresult[41];
 		size_t offset;
 
 		/* calculate hash */
-		SHA1(result, string, strlen(string));
+		SHA1(result, string.c_str(), string.length());
 
 		/* format the hash for comparison */
 		for (offset = 0; offset < 20; offset++) {
-			sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
+			sprintf((reinterpret_cast<char*>(hexresult) + (2 * offset)), "%02x", result[offset] & 0xff);
 		}
 
-		CU_ASSERT("testvec1", strncmp(hexresult, expect, 40) == SUCCESS);
+		CU_ASSERT("testvec1", strncmp(reinterpret_cast<char*>(hexresult), reinterpret_cast<const char*>(expect.c_str()), 40) == SUCCESS);
 	}
 
 	/* Test Vector 2 */
@@ -46,21 +46,21 @@ namespace SHA1_Test
 		void
 	)
 	{
-		char const string[] = "";
-		char const expect[] = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
-		char result[21];
-		char hexresult[41];
+		const byte_string string = reinterpret_cast<byte *>("");
+		const byte_string expect = reinterpret_cast<byte *>("da39a3ee5e6b4b0d3255bfef95601890afd80709");
+		byte result[21];
+		byte hexresult[41];
 		size_t offset;
 
 		/* calculate hash */
-		SHA1(result, string, strlen(string));
+		SHA1(result, string.c_str(), string.length());
 
 		/*format the hash for comparison */
 		for (offset = 0; offset < 20; offset++) {
-			sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
+			sprintf((reinterpret_cast<char*>(hexresult) + (2 * offset)), "%02x", result[offset] & 0xff);
 		}
 
-		CU_ASSERT("testvec2", strncmp(hexresult, expect, 40) == SUCCESS);
+		CU_ASSERT("testvec2", strncmp(reinterpret_cast<char*>(hexresult), reinterpret_cast<const char*>(expect.c_str()), 40) == SUCCESS);
 	}
 
 	/* Test Vector 3 */
@@ -68,21 +68,21 @@ namespace SHA1_Test
 		void
 	)
 	{
-		char const string[] = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
-		char const expect[] = "84983e441c3bd26ebaae4aa1f95129e5e54670f1";
-		char result[21];
-		char hexresult[41];
+		const byte_string string = reinterpret_cast<byte *>("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq");
+		const byte_string expect = reinterpret_cast<byte *>("84983e441c3bd26ebaae4aa1f95129e5e54670f1");
+		byte result[21];
+		byte hexresult[41];
 		size_t offset;
 
 		/* calculate hash */
-		SHA1(result, string, strlen(string));
+		SHA1(result, string.c_str(), string.length());
 
 		/* format the hash for comparison */
 		for (offset = 0; offset < 20; offset++) {
-			sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
+			sprintf((reinterpret_cast<char*>(hexresult) + (2 * offset)), "%02x", result[offset] & 0xff);
 		}
 
-		CU_ASSERT("testvec3", strncmp(hexresult, expect, 40) == SUCCESS);
+		CU_ASSERT("testvec3", strncmp(reinterpret_cast<char*>(hexresult), reinterpret_cast<const char*>(expect.c_str()), 40) == SUCCESS);
 	}
 
 	/* Test Vector 4 */
@@ -90,26 +90,26 @@ namespace SHA1_Test
 		void
 	)
 	{
-		char const string1[] = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghij";
-		char const string2[] = "klmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
-		char const expect[] = "a49b2446a02c645bf419f995b67091253a04a259";
-		unsigned char result[21];
-		char hexresult[41];
+		const byte_string string1 = reinterpret_cast<byte *>("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghij");
+		const byte_string string2 = reinterpret_cast<byte *>("klmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu");
+		const byte_string expect = reinterpret_cast<byte *>("a49b2446a02c645bf419f995b67091253a04a259");
+		byte result[21];
+		byte hexresult[41];
 		size_t offset;
 		SHA1_CTX ctx;
 
 		/* calculate hash */
 		SHA1Init(&ctx);
-		SHA1Update(&ctx, (unsigned char const *)string1, strlen(string1));
-		SHA1Update(&ctx, (unsigned char const *)string2, strlen(string2));
+		SHA1Update(&ctx, string1.c_str(), string1.length());
+		SHA1Update(&ctx, string2.c_str(), string2.length());
 		SHA1Final(result, &ctx);
 
 		/* format the hash for comparison */
 		for (offset = 0; offset < 20; offset++) {
-			sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
+			sprintf((reinterpret_cast<char*>(hexresult) + (2 * offset)), "%02x", result[offset] & 0xff);
 		}
 
-		CU_ASSERT("testvec4", strncmp(hexresult, expect, 40) == SUCCESS);
+		CU_ASSERT("testvec4", strncmp(reinterpret_cast<char*>(hexresult), reinterpret_cast<const char*>(expect.c_str()), 40) == SUCCESS);
 	}
 
 	/* Test Vector 5 */
@@ -117,28 +117,28 @@ namespace SHA1_Test
 		void
 	)
 	{
-		char string[1000001];
-		char const expect[] = "34aa973cd4c4daa4f61eeb2bdbad27316534016f";
-		char result[21];
-		char hexresult[41];
-		int iterator;
+		const byte_string expect = reinterpret_cast<byte *>("34aa973cd4c4daa4f61eeb2bdbad27316534016f");
+		byte result[21];
+		byte hexresult[41];
 		size_t offset;
 
 		/* generate string */
-		for (iterator = 0; iterator < 1000000; iterator++) {
-			string[iterator] = 'a';
+		byte_string str;
+		constexpr size_t kArraySz = 1000000;
+		str.reserve(kArraySz);
+		for (size_t idx = 0; idx < kArraySz; idx++) {
+			str += 'a';
 		}
-		string[1000000] = '\0';
 
 		/* calculate hash */
-		SHA1(result, string, strlen(string));
+		SHA1(result, str.c_str(), str.length());
 
 		/* format the hash for comparison */
 		for (offset = 0; offset < 20; offset++) {
-			sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
+			sprintf((reinterpret_cast<char*>(hexresult) + (2 * offset)), "%02x", result[offset] & 0xff);
 		}
 
-		CU_ASSERT("testvec5", strncmp(hexresult, expect, 40) == SUCCESS);
+		CU_ASSERT("testvec5", strncmp(reinterpret_cast<char*>(hexresult), reinterpret_cast<const char*>(expect.c_str()), 40) == SUCCESS);
 	}
 
 	/* Test Vector 6 */
@@ -146,10 +146,10 @@ namespace SHA1_Test
 		void
 	)
 	{
-		char const string[] = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmno";
-		char const expect[] = "7789f0c9ef7bfc40d93311143dfbe69e2017f592";
-		unsigned char result[21];
-		char hexresult[41];
+		const byte_string string = reinterpret_cast<byte *>("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmno");
+		const byte_string expect = reinterpret_cast<byte *>("7789f0c9ef7bfc40d93311143dfbe69e2017f592");
+		byte result[21];
+		byte hexresult[41];
 		int iterator;
 		size_t offset;
 		SHA1_CTX ctx;
@@ -157,16 +157,16 @@ namespace SHA1_Test
 		/* calculate hash */
 		SHA1Init(&ctx);
 		for (iterator = 0; iterator < 16777216; iterator++) {
-			SHA1Update(&ctx, (unsigned char const *)string, strlen(string));
+			SHA1Update(&ctx, string.c_str(), string.length());
 		}
 		SHA1Final(result, &ctx);
 
 		/* format the hash for comparison */
 		for (offset = 0; offset < 20; offset++) {
-			sprintf((hexresult + (2 * offset)), "%02x", result[offset] & 0xff);
+			sprintf((reinterpret_cast<char*>(hexresult) + (2 * offset)), "%02x", result[offset] & 0xff);
 		}
 
-		CU_ASSERT("testvec6", strncmp(hexresult, expect, 40) == SUCCESS);
+		CU_ASSERT("testvec5", strncmp(reinterpret_cast<char*>(hexresult), reinterpret_cast<const char*>(expect.c_str()), 40) == SUCCESS);
 	}
 
 	void RunTest(const std::string& name, void func())
@@ -175,10 +175,9 @@ namespace SHA1_Test
 		func();
 	}
 
-	void RunAll();
 }
 
-void SHA1_Test::RunAll()
+void SHA1_Test_RunAll()
 {
 	using namespace SHA1_Test;
 

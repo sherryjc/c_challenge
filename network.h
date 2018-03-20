@@ -64,3 +64,17 @@ public:
 	static Attacker* c_pAttacker;
 };
 
+class Server {
+public:
+	Server() {}
+
+
+
+	static Server* c_pServer;
+};
+
+class Client {
+public:
+	Client() {}
+
+};

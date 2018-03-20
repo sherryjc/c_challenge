@@ -98,9 +98,9 @@ void Person::ComputeAes()
 	}
 
 	m_aes_key.clear();
-	char result[kDigestSize + 1];
-	char buf[sizeof(int) + 1];
-	sprintf_s(buf, _countof(buf), "%4d", m_dh_key);
+	byte result[kDigestSize + 1];
+	byte buf[sizeof(int) + 1];
+	sprintf_s(reinterpret_cast<char*>(buf), _countof(buf), "%4d", m_dh_key);
 	SHA1(result, buf, sizeof(int));
 	for (size_t ii = 0; ii < c_kAESblockSz; ++ii)
 	{
@@ -367,9 +367,9 @@ void Attacker::ExamineMsg(byte_string encrMsg)   // Note - encrMsg not &, workin
 void Attacker::ComputeAes()
 {
 	m_aes_key.clear();
-	char result[kDigestSize + 1];
-	char buf[sizeof(int) + 1];
-	sprintf_s(buf, _countof(buf), "%4d", m_dh_key);
+	byte result[kDigestSize + 1];
+	byte buf[sizeof(int) + 1];
+	sprintf_s(reinterpret_cast<char *>(buf), _countof(buf), "%4d", m_dh_key);
 	SHA1(result, buf, sizeof(int));
 	for (size_t ii = 0; ii < Person::c_kAESblockSz; ++ii)
 	{

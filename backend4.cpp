@@ -3,6 +3,7 @@
 #include <iostream>
 #include "aes.h"
 #include "utils.h"
+#include "sha1.h"
 
 using namespace crypto_utils;
 using namespace io_utils;
@@ -268,3 +269,26 @@ void Backend::Oracle4::DumpDatabase()
 	std::cout << pDisplay << std::endl;
 }
 
+// Challenge 4 29
+static const byte_string key_4_29 = reinterpret_cast<byte*>("1234567");
+
+void Backend::GetHash4_29(const byte_string& input, byte* pHash, size_t hashLen)
+{
+	if (hashLen < kDigestSize) return;
+	const byte_string secretPrefixMsg = key_4_29 + input;
+	SHA1(pHash, secretPrefixMsg.c_str(), secretPrefixMsg.length());
+}
+
+// Returns true if the request is valid
+bool Backend::Authorization4_29(const byte_string& request, const byte* pHash, size_t hashLen)  
+{
+	if (hashLen != kDigestSize) return 0;
+
+	const byte_string keyReq = key_4_29 + request;
+
+	byte requestHash[kDigestSize + 1];
+	SHA1(requestHash, keyReq.c_str(), keyReq.length());
+
+	bool bValid = io_utils::byteCompare(pHash, requestHash, kDigestSize);
+	return bValid;
+}

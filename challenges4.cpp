@@ -269,20 +269,19 @@ bool Challenges::Set4Ch28()
 	return true;
 }
 
-static bool _ComputeMDPaddedMsg(const byte_string& msg, byte_string& paddedMsg, bool bIncludeLen)
+static bool _ComputeMDPaddedMsg(const byte_string& msg, int keyLenGuess, byte_string& paddedMsg)
 {
-	// Does the full pre-processing as described in the SHA-1 wiki page.
-	// Append '1' bit by adding 0x80 if the message length is a multiple of 8 bits
+	// Append '1' bit by adding 0x80 if the message length is a multiple of 8 bits (which it is)
 	// Append 0 <= k < 512 bits = 64 bytes of 0's s.t. resulting bit length is 448 (mod 512)
 	// Then append the original message length as a 64-bit BE integer.
 
-	int64_t origMLBits = msg.length() * 8;
+	int64_t origMLBits = (msg.length() + keyLenGuess) * 8;
 
 	paddedMsg = msg;
 	// Since our messages are in bytes, we will always add the first 0x80
 	paddedMsg += (byte)0x80;
 
-	size_t paddedMsgByteLen = paddedMsg.length();
+	size_t paddedMsgByteLen = paddedMsg.length() + keyLenGuess;
 	size_t paddedMsgBitLen = paddedMsgByteLen * 8;
 	
 	int pmblMod512 = paddedMsgBitLen % 512;
@@ -308,38 +307,73 @@ static bool _ComputeMDPaddedMsg(const byte_string& msg, byte_string& paddedMsg, 
 		paddedMsg += oml[ii];
 	}
 
-	paddedMsgBitLen = paddedMsg.length() * 8;
+	paddedMsgBitLen = (paddedMsg.length() + keyLenGuess) * 8;
 	return (paddedMsgBitLen % 512) ? false : true;
 }
 
-static void _ComputeMDPadding(const byte_string& msg, byte_string& padding)
-{
-	// Just appends the original message length as a 64-bit BE integer.
-	padding.clear();
-
-	int64_t origMLBits = msg.length() * 8;
-
-	// Prepare the original message length bytes
-	byte oml[sizeof(int64_t)]{ 0 };
-	io_utils::int64ToBytesBE(origMLBits, oml, sizeof(oml));
-
-	for (size_t ii = 0; ii < sizeof(oml); ++ii)
-	{
-		padding += oml[ii];
-	}
-}
 
 bool Challenges::Set4Ch29()
 {
 
-	const byte_string origString = reinterpret_cast<byte*>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123");
-	byte_string padding;
-	_ComputeMDPadding(origString, padding);
+	// Legit user knows the key, sends a request and the keyed-hash of the request
+	const byte_string origReqString = reinterpret_cast<byte*>("comment1 = cooking % 20MCs; userdata = foo; comment2 = % 20like % 20a % 20pound % 20of % 20bacon");
+	const byte_string key = reinterpret_cast<byte*>("1234567");
+	byte_string secretPrefixStr = key + origReqString;
+	byte hashBuf[kDigestSize + 1];
+	SHA1(hashBuf, secretPrefixStr.c_str(), secretPrefixStr.length());
+	dbg_utils::displayHex(hashBuf, kDigestSize);
+	bool bValidReq = Backend::Authorization4_29(origReqString, hashBuf, kDigestSize);
+	std::string boolResStr = bValidReq ? "True" : "False";
+	std::cout << "Legit user's request status: " << boolResStr << std::endl;
 
-	// To verify we are using the same padding, we need the padded string minus the length bytes at the end
-	_DisplaySHA1(origString.c_str(), origString.length());
-	//_DisplaySHA1(paddedMsgMinusLength.c_str(), paddedMsgMinusLength.length());
-	dbg_utils::displayHex(padding);
+	// Attacker needs to construct two things:
+	// - A request consisting of: original data + original padding with count including key length + new data
+	// - A hash of that request that is constructed by starting the SHA1 state machine at the point where the legit request left off
+	//   and continuing on to update the hash with the new inputs. The attacker somehow has access to the hash of the secret-prefix 
+	//   message we want to use as the basis of our forged message.
+
+	// TODO: construct a trial loop to try key lengths since we don't know it
+	// For starters, just supply a very lucky guess
+	byte_string paddedMsg;
+	int keyLenGuess = 7;
+	bool bCompute = _ComputeMDPaddedMsg(origReqString, keyLenGuess, paddedMsg);
+	boolResStr = bCompute ? "True" : "False";
+	std::cout << "Compute padded message status: " << boolResStr << std::endl;
+	dbg_utils::displayHex(paddedMsg);
+
+	// Initialize our starting state from hashBuf and the known message length
+	SHA1_CTX ctx;
+	ctx.count[0] = (paddedMsg.length() + keyLenGuess) * 8;
+	ctx.count[1] = 0;
+	memset(ctx.buffer, 0, sizeof(ctx.buffer));
+
+	// Convert from the hash digest to context counters
+	// We are performing the inverse of this operation in the SHA1 code:
+	// for (size_t i = 0; i < 20; i++)
+	// {
+	//  	digest[i] = ((context->state[i >> 2] >> ((3 - (i & 3)) * 8)) & 255);
+	// }
+	constexpr size_t wordCnt = kDigestSize / sizeof(int32_t);
+	size_t hashIdx = 0;
+	for (size_t i = 0; i < wordCnt; ++i)
+	{ 
+		int32_t result=0;
+		io_utils::BytesBEToInt32(&hashBuf[hashIdx], sizeof(int32_t), result);
+		ctx.state[i] = result;
+		hashIdx += sizeof(int32_t);
+	}
+
+	byte forgedHashBuf[kDigestSize + 1];
+	const byte_string additionalReqString = reinterpret_cast<byte*>(";admin=true");
+	const byte_string forgedReqString = paddedMsg + additionalReqString;
+
+	// Get the incremental hash of our additional request
+	SHA1_Ext(&ctx, forgedHashBuf, additionalReqString.c_str(), additionalReqString.length());
+
+	// Now see if the forged request string will be accepted
+	bValidReq = Backend::Authorization4_29(forgedReqString, forgedHashBuf, kDigestSize);
+	boolResStr = bValidReq ? "True" : "False";
+	std::cout << "Attacker's request status: " << boolResStr << std::endl;
 
 	return true;
 }

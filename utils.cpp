@@ -258,7 +258,7 @@ void io_utils::int64ToBytesBE(int64_t paramInt, byte* pBytes, size_t byteCnt)
 {
 	if (byteCnt < 8) return;
 
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; ++i) {
 		pBytes[7 - i] = static_cast<byte>(paramInt >> (i * 8));
 	}
 }
@@ -268,9 +268,15 @@ void io_utils::int64ToBytesLE(int64_t paramInt, byte* pBytes, size_t byteCnt)
 {
 	if (byteCnt < 8) return;
 
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; ++i) {
 		pBytes[i] = static_cast<byte>(paramInt >> (i * 8));
 	}
+}
+
+void io_utils::BytesBEToInt32(byte* pBytes, size_t byteCnt, int32_t& result)
+{
+	if (byteCnt < 4) return;
+	result = (pBytes[0] << 24) + (pBytes[1] << 16) + (pBytes[2] << 8) + pBytes[3];
 }
 
 bool io_utils::GetCurrentTimeUnixFmt(int64_t *pUnixTime)

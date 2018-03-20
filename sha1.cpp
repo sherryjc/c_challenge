@@ -273,3 +273,17 @@ void SHA1(
     hash_out[20] = '\0';
 }
 
+void SHA1_Ext(
+	SHA1_CTX* pCtx,  // This should be filled out with the desired initial state
+	byte *hash_out,
+	const byte *str,
+	size_t len)
+{
+	unsigned int ii;
+	// Note no call to SHA1Init!
+	for (ii = 0; ii < len; ii += 1)
+		SHA1Update(pCtx, str + ii, 1);
+	SHA1Final(hash_out, pCtx);
+	hash_out[20] = '\0';
+}
+

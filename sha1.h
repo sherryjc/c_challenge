@@ -43,6 +43,12 @@ void SHA1(
     const byte *str,
     size_t len);
 
+void SHA1_Ext(
+	SHA1_CTX* pCtx,  // This should be filled out with the desired initial state
+	byte *hash_out,
+	const byte *str,
+	size_t len);
+
 void SHA1_Test_RunAll();
 
 

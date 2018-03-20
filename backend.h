@@ -72,4 +72,7 @@ namespace Backend {
 		byte* m_pEncryptedData = nullptr;
 		size_t m_pEncryptedDataSz = 0;
 	};
+
+	void GetHash4_29(const byte_string& input, byte* pHash, size_t hashLen); // The Oracle is kind enough to give us back hashes
+	bool Authorization4_29(const byte_string& request, const byte* pHash, size_t hashLen);  
 }

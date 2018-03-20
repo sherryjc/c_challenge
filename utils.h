@@ -48,7 +48,9 @@ namespace io_utils {
 
 	// Big-endian
 	void int64ToBytesBE(int64_t paramInt, byte* pBytes, size_t byteCnt);
-	// Little-endian
+	void BytesBEToInt32(byte* pBytes, size_t byteCnt, int32_t& result);
+
+		// Little-endian
 	void int64ToBytesLE(int64_t paramInt, byte* pBytes, size_t byteCnt);
 
 	bool GetCurrentTimeUnixFmt(int64_t *pUnixTime);

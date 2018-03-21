@@ -42,9 +42,6 @@
     <ClInclude Include="sha1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="n.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="sha256.h">
       <Filter>Header Files</Filter>
     </ClInclude>

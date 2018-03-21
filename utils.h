@@ -109,14 +109,7 @@ namespace crypto_utils {
 namespace math_utils
 {
 	int modexp(int b, int e, int p);   // b^e mod p    (b=base, e=exponent)
-
-	// Large-number support
-
-	// result = a mod m
-	void mod(const N& a, const N& m, N& result);
-
-	// result = (b ^ e) mod m
-	void modexp(const N& b, const N& e, const N& m, N& result);
+	bool byteBufToULL(const byte* pBytes, size_t nBytes, unsigned long long& ull);   // Not implemented yet
 }
 
 

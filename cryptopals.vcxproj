@@ -165,7 +165,6 @@
     <ClInclude Include="backend.h" />
     <ClInclude Include="challenges.h" />
     <ClInclude Include="hmac.h" />
-    <ClInclude Include="n.h" />
     <ClInclude Include="network.h" />
     <ClInclude Include="RNG.h" />
     <ClInclude Include="sha1.h" />

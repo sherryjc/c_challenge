@@ -3,6 +3,7 @@
 #include "sha1.h"
 #include "sha256.h"
 #include "aes.h"
+#include <openssl/rand.h>
 
 using namespace crypto_utils;
 using namespace math_utils;
@@ -375,4 +376,73 @@ void Attacker::ComputeAes()
 	{
 		m_aes_key += result[ii];
 	}
+}
+
+// Implementation of class Client
+
+Client::Client(BIGNUM* pN, int g, int k, const byte_string& email, const byte_string& pwd)
+	: m_pNPrime(pN),  // transfer ownership - Client owns this now
+	  m_g(g), m_k(k),
+	  m_email(email), m_pwd(pwd)
+{
+}
+
+
+Client::~Client()
+{
+	if (m_pNPrime)
+	{
+		BN_free(m_pNPrime);
+		m_pNPrime = nullptr;
+	}
+}
+
+// Implementation of class ClientRec
+ClientRec::ClientRec(const Client& client)
+	: m_g(client.m_g),
+	  m_k(client.m_k),
+	  m_email(client.m_email),
+	  m_pwd(client.m_pwd)
+{
+	m_pNPrime = BN_dup(client.m_pNPrime);
+}
+
+
+// Implementation of class Server
+
+Server::Server()
+{
+}
+
+void Server::Register(Client& client)
+{
+	ClientRec cr(client);
+
+	// Generate salt as random int
+	static const size_t kSaltWidth = 8;
+	for (size_t ii = 0; ii < kSaltWidth; ++ii)
+	{
+		cr.m_salt += getRandomByte();
+	}
+
+	// Generate string xH = SHA256(salt|password)
+	byte_string inpxH = cr.m_salt + cr.m_pwd;
+	byte_string xH;
+	byte hash_out[SHA256_BLOCK_SIZE+1];
+	SHA256(inpxH.c_str(), inpxH.length(), hash_out, _countof(hash_out));
+
+	// Convert xH to integer x somehow (put 0x on hexdigest)
+	// That last suggestion is not really possible in C++.
+	// We need to get these hash bytes into a BIGNUM. It's too big for the biggest unsigned long long (see math_utils::byteBufToULL) 
+	// The danger is that it may contain one or more null bytes, which would break initialization into BIGNUM, which relies on a null-terminated array.
+	// We could check our hash buffer for a null, if found, change the salt and rehash.
+	// TO BE CONTINUED
+
+	// Generate v=g**x % N
+
+	// Save everything but x, xH
+
+	client.m_srvIndex = (int)m_vClientRecs.size();  // Client "id" is the index into the vector
+	m_vClientRecs.push_back(cr);
+
 }

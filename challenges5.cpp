@@ -6,13 +6,13 @@
 
 #include "challenges.h"
 #include "utils.h"
-#include "n.h"
 #include "sha1.h"
 #include "aes.h"
 #include "sha256.h"
 #include "network.h"
 #include "hmac.h"
 #include <openssl/bn.h>
+#include <openssl/rand.h>
 
 using namespace io_utils;
 using namespace crypto_utils;
@@ -44,32 +44,19 @@ static void _intro5_33()
 	std::cout << "Session keys " << s1 << " and " << s2 << std::endl;
 }
 
-void _NLibTest()
-{
-	// Test the imported library delivered in n.h
 
-	// A test from Rosettacode.org
-	//Find the last 40 decimal digits of a ^ b, where
-	//a = 2988348162058574136915891421498819466320163312926952423791023078876139   
-	//b = 2351399303373464486466122544523690094744975233415544072992656881240319 
-	// Last 40 decimal digits == modulo 10^40
-	// Answer
-	// a^b (mod 10^40) = 1527229998585248450016808958343740453059
-	// 
-	N a("2988348162058574136915891421498819466320163312926952423791023078876139");
-	N b("2351399303373464486466122544523690094744975233415544072992656881240319");
-	N mb("10");
-	N me("40");
-	N m = N::w_pow(mb, me);
-	std::cout << "10^40 = " << m.s() << std::endl;
-	N result;
-	math_utils::mod(a, m, result);
-	std::cout << "a % m = " << result.s() << std::endl;
-	math_utils::mod(b, m, result);
-	std::cout << "b % m = " << result.s() << std::endl;
-	math_utils::modexp(a, b, m, result);
-	std::cout << "a^b % m = " << result.s() << std::endl;
+static void _CheckBNrc(int val)
+{
+	// BN return codes: 1 on success, 0 on error
+	if (0 == val) std::cout << "Operation failed" << std::endl;
 }
+
+static void _DisplayCmpResult(int nCmpResult)
+{
+	std::string resultStr = (0 == nCmpResult) ? "PASSED" : "FAILED";
+	std::cout << "Compare operation " << resultStr << std::endl;
+}
+
 
 void _OpenSSLLibTest()
 {
@@ -105,6 +92,36 @@ void _OpenSSLLibTest()
 	BN_mod_exp(pResult, pA, pB, pM, pCtx);
 
 	std::cout << "a^b % m = " << BN_bn2dec(pResult) << std::endl;
+	BIGNUM* pExpected = nullptr;
+	BN_dec2bn(&pExpected, "1527229998585248450016808958343740453059");
+	std::cout << "Modular exponentiation test" << std::endl;
+	_DisplayCmpResult( BN_cmp(pResult, pExpected) );
+
+	std::cout << "Random number tests" << std::endl;
+	const byte_string seedStr = reinterpret_cast<byte *>("The quick brown fox jumps over the lazy dog.");
+	RAND_seed(seedStr.c_str(), (int)seedStr.length());
+	BIGNUM* r1 = BN_new();
+	int rc = BN_rand_range(r1, pMB);
+	_CheckBNrc(rc);
+	std::cout << "random number r1 in [0, 10] = " << BN_bn2dec(r1) << std::endl;
+
+	BIGNUM* r2 = BN_new();
+	rc = BN_rand_range(r2, pA);
+	_CheckBNrc(rc);
+	std::cout << "random number r1 in [0, A] = " << BN_bn2dec(r2) << std::endl;
+
+	BIGNUM* nPrime = BN_new();
+	rc = BN_generate_prime_ex(nPrime, 10, 0, nullptr, nullptr, nullptr);
+	_CheckBNrc(rc);
+	std::cout << "10-bit prime = " << BN_bn2dec(nPrime) << std::endl;
+
+	rc = BN_generate_prime_ex(nPrime, 30, 0, nullptr, nullptr, nullptr);
+	_CheckBNrc(rc);
+	std::cout << "30-bit prime = " << BN_bn2dec(nPrime) << std::endl;
+	rc = BN_generate_prime_ex(nPrime, 50, 0, nullptr, nullptr, nullptr);
+	_CheckBNrc(rc);
+	std::cout << "50-bit prime = " << BN_bn2dec(nPrime) << std::endl;
+
 
 	BN_free(pA);
 	BN_free(pB);
@@ -112,19 +129,19 @@ void _OpenSSLLibTest()
 	BN_free(pME);
 	BN_free(pMB);
 	BN_free(pResult);
+	BN_free(nPrime);
 	BN_CTX_free(pCtx);
 }
 
 bool Challenges::Set5Ch33()
 {
 	//_intro5_33();
-	//_NLibTest();
 	_OpenSSLLibTest();
 
-
-
-	int g = 2;
-	N p(
+	std::cout << "Begin 5Ch33" << std::endl;
+	// NIST-recommended number given in the exercise (377 decimal digits, roughly equivalent to 1252 bits)
+	BIGNUM* p = nullptr;
+	BN_dec2bn(&p,
 		"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"
 		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"
 		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"
@@ -134,16 +151,65 @@ bool Challenges::Set5Ch33()
 		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"
 		"fffffffffffff"
 	);
+	BIGNUM* g = BN_new();
+	BN_set_word(g, 2);
 
-	// Need to get a random number uniformly distributed in [1, p-1)
-	// Need modexp that can handle a, b, p in that range
+	BN_CTX* ctx = BN_CTX_new();
+	const byte_string seedStr = { 0xd0, 0x96, 0xd0, 0x95, 0xd0, 0x9b, 0xd0, 0x90, 0xd0, 0x9d, 0xd0, 0x9d, 0xd0, 0xac, 0xd0, 0x86, 0xd0, 0x98 };
+	RAND_seed(seedStr.c_str(), (int)seedStr.length());
 
-	// See Python file Challenges5.py
-	// I gave up trying to get a library that will handle large numbers in C++.
-	// GMP looks like the best bet but I couldn't get it to install on Windows.
-	// In spite of their statement that this is "not hard", getting a C++
-	// library written that can handle such large numbers and still finish
-	// in reasonable time does not seem to me a trivial task. 
+	// TODO
+	// I wanted a, b to be random in the range (0, p)
+	// But p seems to exceed the maximum allowed by BN_rand_range, although I have seen it work - but usually it fails.
+	// So I guess I need to build up a value from multiple calls to BN_rand_range.
+	// For now just pick a smaller range.
+	BIGNUM* rngUpperBnd = nullptr;
+	// We know this value worked from the test code above
+	BN_dec2bn(&rngUpperBnd, "2988348162058574136915891421498819466320163312926952423791023078876139");
+
+	BIGNUM* a = BN_new();
+	//int rc = BN_rand_range(a, p);
+	int rc = BN_rand_range(a, rngUpperBnd);
+	_CheckBNrc(rc);
+	std::cout << "random number a = " << BN_bn2dec(a) << std::endl;
+
+	BIGNUM* b = BN_new();
+	//rc = BN_rand_range(b, p);
+	rc = BN_rand_range(b, rngUpperBnd);
+	_CheckBNrc(rc);
+	std::cout << "random number b = " << BN_bn2dec(b) << std::endl;
+
+	// However, this are also having trouble, presumably p is too large?
+	BIGNUM* ga = BN_new();
+	rc = BN_mod_exp(ga, g, a, p, ctx);  // ga = g^a mod p
+	_CheckBNrc(rc);
+	std::cout << "g^a = " << BN_bn2dec(ga) << std::endl;
+
+	BIGNUM* gb = BN_new();
+	rc = BN_mod_exp(gb, g, b, p, ctx);  // gb = g^b mod p
+	_CheckBNrc(rc);
+
+	BIGNUM* s1 = BN_new();
+	rc = BN_mod_exp(s1, ga, b, p, ctx);  // s1 = (ga)^b mod p = g^(ab) mod p
+	_CheckBNrc(rc);
+
+	BIGNUM* s2 = BN_new();
+	rc = BN_mod_exp(s2, gb, a, p, ctx);  // s1 = (gb)^a mod p = g^(ba) mod p
+	_CheckBNrc(rc);
+
+	_DisplayCmpResult( BN_cmp(s1, s2) );
+	std::cout << "session key 1 = " << BN_bn2dec(s1) << std::endl;
+	std::cout << "session key 2 = " << BN_bn2dec(s2) << std::endl;
+
+	BN_free(p);
+	BN_free(g);
+	BN_free(a);
+	BN_free(b);
+	BN_free(ga);
+	BN_free(gb);
+	BN_free(s1);
+	BN_free(s2);
+	BN_CTX_free(ctx);
 
 	return true;
 }
@@ -229,21 +295,27 @@ static bool _sha256_test()
 	return(b1 && b2 && b3);
 }
 
+static Server s_Server;
+
 bool Challenges::Set5Ch36()
 {
-	bool bResult = _sha256_test();
-	std::string result = bResult ? "SUCCEEDED" : "FAILED";
-	std::cout << "SHA-256 tests: " <<  result << std::endl;
+	//bool bResult = _sha256_test();
+	// HMAC_SHA256_Test();
+	BIGNUM* N = BN_new();
+	static const int nPrimeBits = 50;
+	int rc = BN_generate_prime_ex(N, nPrimeBits, 0, nullptr, nullptr, nullptr);
+	_CheckBNrc(rc);
+	int g = 2; 
+	int k = 3;
+	const byte_string email = reinterpret_cast<byte *>("fred@evilempire.com");
+	const byte_string pwd = reinterpret_cast<byte *>("LetMeIn");
+	Client client(N, g, k, email, pwd);
 
-	HMAC_SHA256_Test();
+	s_Server.Register(client);
 
 
 
-	// N = NIST Prime = 15073
-	// g = 2
-	// k = 3
 
-
-	return bResult;
+	return true;
 }
 

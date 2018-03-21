@@ -12,6 +12,7 @@
 #include "sha256.h"
 #include "network.h"
 #include "hmac.h"
+#include <openssl/bn.h>
 
 using namespace io_utils;
 using namespace crypto_utils;
@@ -70,11 +71,58 @@ void _NLibTest()
 	std::cout << "a^b % m = " << result.s() << std::endl;
 }
 
+void _OpenSSLLibTest()
+{
+	// Test the imported library delivered with OpenSSL
+
+	// A test from Rosettacode.org
+	//Find the last 40 decimal digits of a ^ b, where
+	//a = 2988348162058574136915891421498819466320163312926952423791023078876139   
+	//b = 2351399303373464486466122544523690094744975233415544072992656881240319 
+	// Last 40 decimal digits == modulo 10^40
+	// Answer
+	// a^b (mod 10^40) = 1527229998585248450016808958343740453059
+	// 
+	// BN_exp(BIGNUM *r, BIGNUM *a, BIGNUM *p, BN_CTX *ctx);
+	// r = a^p
+	// BN_mod_exp(BIGNUM* r, BIGNUM* a, BIGNUM* p, const BIGNUM* m, BN_CTX* ctx);
+	// r = a^p % m
+
+	std::cout << "Running the OpenSSL library test" << std::endl;
+
+	BN_CTX* pCtx = BN_CTX_new();
+	BIGNUM* pA = nullptr;
+	BN_dec2bn(&pA, "2988348162058574136915891421498819466320163312926952423791023078876139");
+	BIGNUM* pB = nullptr;
+	BN_dec2bn(&pB, "2351399303373464486466122544523690094744975233415544072992656881240319");
+	BIGNUM* pMB = nullptr;
+	BN_dec2bn(&pMB, "10");
+	BIGNUM* pME = nullptr;
+	BN_dec2bn(&pME, "40");
+	BIGNUM* pResult = BN_new();
+	BIGNUM* pM = BN_new();
+	BN_exp(pM, pMB, pME, pCtx);
+	BN_mod_exp(pResult, pA, pB, pM, pCtx);
+
+	std::cout << "a^b % m = " << BN_bn2dec(pResult) << std::endl;
+
+	BN_free(pA);
+	BN_free(pB);
+	BN_free(pM);
+	BN_free(pME);
+	BN_free(pMB);
+	BN_free(pResult);
+	BN_CTX_free(pCtx);
+}
 
 bool Challenges::Set5Ch33()
 {
 	//_intro5_33();
-	_NLibTest();
+	//_NLibTest();
+	_OpenSSLLibTest();
+
+
+
 	int g = 2;
 	N p(
 		"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"

@@ -319,3 +319,150 @@ bool Challenges::Set5Ch36()
 	return true;
 }
 
+static void _displayGCD(int a, int b)
+{
+	std::cout << "gcd(" << a << "," << b << ") = " << gcd(a, b) << std::endl;
+
+}
+
+static void _displayExtendedGCD(int a, int b, int gcd, int lambda, int mu)
+{
+	std::string eq = " = ";
+	if ((a*lambda + b*mu) != gcd)
+	{
+		std::cout << "FAILED verification of lambda and mu values" <<  std::endl;
+		eq = " != ";
+	}
+	std::cout << "gcd(" << a << "," << b << ") = " << gcd << eq << "(" << lambda << ")a" << " + (" << mu << ")b" << std::endl;
+
+}
+
+static void _gcd_test()
+{
+	_displayGCD(108, 42);
+	_displayGCD(42, 108);        // see if we handle backwards order
+	_displayGCD(1084573620, 9);  // note digits sum to a multiple of 9
+	_displayGCD(1084573621, 9);  // note digits sum to a multiple of 9 + 1
+	_displayGCD(1084573623, 9);  // note digits sum to a multiple of 3 (multiple of 9 + 3)
+	_displayGCD(7907, 6389);     // both prime
+
+}
+
+static void _extended_gcd_test(int a, int b)
+{
+	int lambda = 0, mu = 0;
+	int gcd1 = gcd(a, b);
+	int gcd = extended_gcd(a, b, lambda, mu);
+	if (gcd != gcd1) 
+	{
+		std::cout << "GCDs do not match!!" << std::endl;
+	}
+	_displayExtendedGCD(a, b, gcd, lambda, mu);
+}
+
+static void _invmod_test(int a, int m)
+{
+	int a_inv = 0;
+	bool bHasInv = invmod(a, m, a_inv);
+	if (!bHasInv)
+	{
+		std::cout << "a does not have an inverse mod m" << std::endl;
+		return;
+	}
+	// Check our answer
+	if (!checkInvMod(a, a_inv, m))
+	{
+		std::cout << "The inverse returned by invmod does not compute!" << std::endl;
+	}
+	std::cout << "The inverse of " << a << " mod " << m << " = " << a_inv << std::endl;
+}
+
+static void SendRecvMsg(int msg, int e, int d, int n)
+{
+	// Encrypt: c = m**e % n
+	int c = modexp(msg, e, n);
+
+	// Decrypt: m = c**d % n
+	int msg2 = modexp(c, d, n);
+
+	if (msg2 < 0)
+	{
+		std::cout << "Adjusting negative result" << std::endl;
+		msg2 += n;
+	}
+
+	std::cout << "Sending message: " << msg << std::endl;
+	if (msg != msg2)
+	{
+		std::cout << "FAILED! " << msg << " != " << msg2 << std::endl;
+
+	}
+	else
+	{
+		std::cout << "PASSED " << msg << " == " << msg2 << std::endl;
+	}
+}
+
+bool Challenges::Set5Ch39()
+{
+	//_gcd_test();
+	//_extended_gcd_test(240, 46);
+	//_extended_gcd_test(7907, 6389);
+	//_invmod_test(17, 3120);   // 2753
+
+	// Generate random primes p and q
+	//int p = 19423;
+	//int q = 89371;
+	int p = 43;
+	int q = 37;
+
+	// Set n = p*q.  RSA math will be mod n
+	int n = p*q;
+
+	// Euler's totient = number of integers that are relatively prime to n, i.e. # of k for which gcd(k, n) = 1
+	// et = phi(n) = (p-1)*(q-1) 
+	int phi_n = (p - 1)*(q - 1);
+
+	// Set e = 3
+	// more generally, this is a random number e < phi(n) relatively prime to phi(n), i.e. such that gcd(e, phi(n)) = 1
+	// Just hard-wiring this to 3, as instructed in the Challenge, will not work for some choices of p and q.
+	// So I am going to start at e = 3 and increment until I find the first one that is relatively prime to phi(n).
+	// Not exactly random, but neither is hard-wiring it to 3.
+
+	int e = 3;
+
+	while (gcd(e, phi_n) != 1) { ++e; }
+
+	std::cout << "Found e = " << e << std::endl;
+
+
+	// compute d = invmod(e, phi(n)), that is:  d = inv(e) modulo phi(n)
+	// this means find d such that d*e mod phi(n) = 1
+	int d = 0;
+	bool bHasInv = invmod(e, phi_n, d);
+	if (!bHasInv)
+	{
+		std::cout << "Big problem, couldn't invert e !!!" << std::endl;
+	}
+
+	// Let's do a little sanity check
+	if (!checkInvMod(e, d, phi_n))
+	{
+		std::cout << "The inverse we got didn't pan out!!!" << std::endl;
+	}
+
+	// the public key is [e,n], the private key is [d,n]
+	// Encrypt: c = m**e % n
+	// Decrypt: m = c**d % n
+
+	int m = 42; // the message
+	SendRecvMsg(m, e, d, n);
+
+	m = dbg_utils::toInt("XYZ");
+	SendRecvMsg(m, e, d, n);
+
+	m = dbg_utils::toInt("Hello!");
+	SendRecvMsg(m, e, d, n);
+
+	return true;
+}

@@ -347,6 +347,33 @@ void dbg_utils::displayByteStrAsCStr(const byte_string& str)
 	std::cout << pRawBytes << std::endl;
 }
 
+int dbg_utils::toInt(const std::string& str)
+{
+	// INT_MAX       2147483647    // maximum (signed) int value
+	int rc = 0;
+	int next_rc = 0;
+	for (auto c : str)
+	{
+		next_rc = (rc << 8) + c;
+		if (next_rc > INT_MAX) break;
+		rc = next_rc;
+	}
+	return rc;
+}
+
+long long int dbg_utils::toLongLong(const std::string& str)
+{
+	// LLONG_MAX     9223372036854775807i64       // maximum signed long long int value
+	int rc = 0;
+	int next_rc = 0;
+	for (auto c : str)
+	{
+		next_rc = (rc << 8) + c;
+		if (next_rc > LLONG_MAX) break;
+		rc = next_rc;
+	}
+	return rc;
+}
 
 /*****************************************/
 /*    Crypto Utils                       */

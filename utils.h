@@ -63,6 +63,10 @@ namespace dbg_utils {
 	void displayHex(const byte* pBytes, size_t cnt);
 	void displayHex(const byte_string& str);
 	void displayByteStrAsCStr(const byte_string& str);
+
+	int toInt(const std::string& str);
+	long long int toLongLong(const std::string& str);
+
 }
 
 namespace crypto_utils {
@@ -109,6 +113,21 @@ namespace crypto_utils {
 namespace math_utils
 {
 	int modexp(int b, int e, int p);   // b^e mod p    (b=base, e=exponent)
+
+	// returns greatest common divisor between a and b
+	int gcd(int a, int b);
+
+	// returns greatest common divisor between a and b, as well as lambda and mu such that
+	// lambda * a + mu * b = gcd(a,b)
+	int extended_gcd(int a, int b, int& lambda, int& mu);
+
+	// Returns true if 'a' has an inverse mod m, false otherwise.
+	// The inverse is returned in the argument 'a_inv' if the inverse exists.
+	bool invmod(int a, int m, int& a_inv);
+
+	// Check whether a and a_inv are inverses mod m
+	bool checkInvMod(int a, int a_inv, int m);
+
 	bool byteBufToULL(const byte* pBytes, size_t nBytes, unsigned long long& ull);   // Not implemented yet
 }
 

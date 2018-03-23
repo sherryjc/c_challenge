@@ -105,9 +105,12 @@ int main(int argc, char* argv[])
 	case 36:
 		bRc &= Challenges::Set5Ch36();
 		break;
+	case 39:
+		bRc &= Challenges::Set5Ch39();
+		break;
 	case 0:
 	default:
-		bRc &= Challenges::Set5Ch36();
+		bRc &= Challenges::Set5Ch39();
 		break;
 	}
 

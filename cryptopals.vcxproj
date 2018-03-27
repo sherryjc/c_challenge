@@ -167,6 +167,7 @@
     <ClInclude Include="hmac.h" />
     <ClInclude Include="network.h" />
     <ClInclude Include="RNG.h" />
+    <ClInclude Include="rsa.h" />
     <ClInclude Include="sha1.h" />
     <ClInclude Include="sha256.h" />
     <ClInclude Include="stdafx.h" />
@@ -178,16 +179,19 @@
     <ClCompile Include="backend.cpp" />
     <ClCompile Include="backend3.cpp" />
     <ClCompile Include="backend4.cpp" />
+    <ClCompile Include="backend6.cpp" />
     <ClCompile Include="challenges.cpp" />
     <ClCompile Include="challenges2.cpp" />
     <ClCompile Include="challenges3.cpp" />
     <ClCompile Include="challenges4.cpp" />
     <ClCompile Include="challenges5.cpp" />
+    <ClCompile Include="challenges6.cpp" />
     <ClCompile Include="cryptopals.cpp" />
     <ClCompile Include="hmac.cpp" />
     <ClCompile Include="mathutils.cpp" />
     <ClCompile Include="network.cpp" />
     <ClCompile Include="RNG.cpp" />
+    <ClCompile Include="rsa.cpp" />
     <ClCompile Include="sha1.cpp" />
     <ClCompile Include="sha1_test.cpp" />
     <ClCompile Include="sha256.cpp" />

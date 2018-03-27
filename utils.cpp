@@ -363,7 +363,7 @@ int dbg_utils::toInt(const std::string& str)
 
 long long int dbg_utils::toLongLong(const std::string& str)
 {
-	// LLONG_MAX     9223372036854775807i64       // maximum signed long long int value
+	// LLONG_MAX     9223372036854775807 i64       // maximum signed long long int value
 	int rc = 0;
 	int next_rc = 0;
 	for (auto c : str)
@@ -375,10 +375,24 @@ long long int dbg_utils::toLongLong(const std::string& str)
 	return rc;
 }
 
+unsigned long long dbg_utils::toULongLong(const byte_string& str)
+{
+	// ULLONG_MAX    0xffffffffffffffffui64       // maximum unsigned long long int value
+	int rc = 0;
+	int next_rc = 0;
+	for (auto c : str)
+	{
+		next_rc = (rc << 8) + c;
+		if (next_rc > ULLONG_MAX) break;
+		rc = next_rc;
+	}
+	return rc;
+}
+
+
 /*****************************************/
 /*    Crypto Utils                       */
 /*****************************************/
-
 
 // Table of Base64 Indexes
 static const char b64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

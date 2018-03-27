@@ -66,7 +66,7 @@ namespace dbg_utils {
 
 	int toInt(const std::string& str);
 	long long int toLongLong(const std::string& str);
-
+	unsigned long long toULongLong(const byte_string& str);
 }
 
 namespace crypto_utils {

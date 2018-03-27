@@ -3,8 +3,10 @@
 
 #include <string>
 #include <memory>
+#include <openssl/bn.h>
 #include "utils.h"
 #include "aes.h"
+#include "rsa.h"
 
 namespace Backend {
 
@@ -75,4 +77,21 @@ namespace Backend {
 
 	void GetHash4_29(const byte_string& input, byte* pHash, size_t hashLen); // The Oracle is kind enough to give us back hashes
 	bool Authorization4_29(const byte_string& request, const byte* pHash, size_t hashLen);  
+
+
+	// Set 6
+	class Oracle6 {
+	public:
+		static Oracle6* Get(int nChallenge);
+		bool Encrypt(const byte_string& plaintxt, byte_string& ciphertxt);
+
+	private:
+		Oracle6();
+		~Oracle6();
+		void _Init(int nChallenge);
+		void _InitRSA();
+
+		JRSA* m_pRSA{ nullptr };
+	};
+
 }

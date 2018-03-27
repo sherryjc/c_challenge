@@ -110,17 +110,45 @@ void _OpenSSLLibTest()
 	_CheckBNrc(rc);
 	std::cout << "random number r1 in [0, A] = " << BN_bn2dec(r2) << std::endl;
 
-	BIGNUM* nPrime = BN_new();
-	rc = BN_generate_prime_ex(nPrime, 10, 0, nullptr, nullptr, nullptr);
+	BIGNUM* nPrime10 = BN_new();
+	rc = BN_generate_prime_ex(nPrime10, 10, 0, nullptr, nullptr, nullptr);
 	_CheckBNrc(rc);
-	std::cout << "10-bit prime = " << BN_bn2dec(nPrime) << std::endl;
+	std::cout << "10-bit prime = " << BN_bn2dec(nPrime10) << std::endl;
 
-	rc = BN_generate_prime_ex(nPrime, 30, 0, nullptr, nullptr, nullptr);
+	BIGNUM* nPrime30 = BN_new();
+	rc = BN_generate_prime_ex(nPrime30, 30, 0, nullptr, nullptr, nullptr);
 	_CheckBNrc(rc);
-	std::cout << "30-bit prime = " << BN_bn2dec(nPrime) << std::endl;
-	rc = BN_generate_prime_ex(nPrime, 50, 0, nullptr, nullptr, nullptr);
+	std::cout << "30-bit prime = " << BN_bn2dec(nPrime30) << std::endl;
+
+	BIGNUM* nPrime50 = BN_new();
+	rc = BN_generate_prime_ex(nPrime50, 50, 0, nullptr, nullptr, nullptr);
 	_CheckBNrc(rc);
-	std::cout << "50-bit prime = " << BN_bn2dec(nPrime) << std::endl;
+	std::cout << "50-bit prime = " << BN_bn2dec(nPrime50) << std::endl;
+
+	// NIST-recommended number given in the exercise (377 decimal digits, roughly equivalent to 1252 bits)
+	BIGNUM* p = nullptr;
+	BN_dec2bn(&p,
+		"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"
+		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"
+		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"
+		"6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f"
+		"24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361"
+		"c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552"
+		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"
+		"fffffffffffff"
+	);
+
+	BIGNUM* pModTest = BN_new();
+	BN_mod(pModTest, nPrime50, nPrime30, pCtx);
+	std::cout << "50-bit prime mod 30-bit prime = " << BN_bn2dec(pModTest) << std::endl;
+
+	BIGNUM* pMod50bit = BN_new();
+	BN_mod(pMod50bit, p, nPrime50, pCtx);
+	std::cout << "NIST p mod 50-bit prime = " << BN_bn2dec(pMod50bit) << std::endl;
+
+
+	BIGNUM* g = BN_new();
+	BN_set_word(g, 2);
 
 
 	BN_free(pA);
@@ -129,7 +157,11 @@ void _OpenSSLLibTest()
 	BN_free(pME);
 	BN_free(pMB);
 	BN_free(pResult);
-	BN_free(nPrime);
+	BN_free(nPrime10);
+	BN_free(nPrime30);
+	BN_free(nPrime50);
+	BN_free(p);
+	BN_free(g);
 	BN_CTX_free(pCtx);
 }
 
@@ -179,7 +211,7 @@ bool Challenges::Set5Ch33()
 	_CheckBNrc(rc);
 	std::cout << "random number b = " << BN_bn2dec(b) << std::endl;
 
-	// However, this are also having trouble, presumably p is too large?
+	// However, this is also having trouble, presumably p is too large?
 	BIGNUM* ga = BN_new();
 	rc = BN_mod_exp(ga, g, a, p, ctx);  // ga = g^a mod p
 	_CheckBNrc(rc);
@@ -385,12 +417,6 @@ static void SendRecvMsg(int msg, int e, int d, int n)
 	// Decrypt: m = c**d % n
 	int msg2 = modexp(c, d, n);
 
-	if (msg2 < 0)
-	{
-		std::cout << "Adjusting negative result" << std::endl;
-		msg2 += n;
-	}
-
 	std::cout << "Sending message: " << msg << std::endl;
 	if (msg != msg2)
 	{
@@ -408,7 +434,7 @@ bool Challenges::Set5Ch39()
 	//_gcd_test();
 	//_extended_gcd_test(240, 46);
 	//_extended_gcd_test(7907, 6389);
-	//_invmod_test(17, 3120);   // 2753
+	_invmod_test(17, 3120);   // 2753
 
 	// Generate random primes p and q
 	//int p = 19423;
@@ -434,7 +460,7 @@ bool Challenges::Set5Ch39()
 	while (gcd(e, phi_n) != 1) { ++e; }
 
 	std::cout << "Found e = " << e << std::endl;
-
+	std::cout << "n = " << n << " phi(n) = " << phi_n << std::endl;
 
 	// compute d = invmod(e, phi(n)), that is:  d = inv(e) modulo phi(n)
 	// this means find d such that d*e mod phi(n) = 1
@@ -451,18 +477,130 @@ bool Challenges::Set5Ch39()
 		std::cout << "The inverse we got didn't pan out!!!" << std::endl;
 	}
 
+	std::cout << "e = " << e << " d = " << d << std::endl;
+
 	// the public key is [e,n], the private key is [d,n]
 	// Encrypt: c = m**e % n
 	// Decrypt: m = c**d % n
+	// Note that m must be less than n. Otherwise we have to break m into chunks.
 
 	int m = 42; // the message
 	SendRecvMsg(m, e, d, n);
 
-	m = dbg_utils::toInt("XYZ");
+	m = 1590;
 	SendRecvMsg(m, e, d, n);
 
-	m = dbg_utils::toInt("Hello!");
-	SendRecvMsg(m, e, d, n);
 
 	return true;
+}
+
+static bool _Set5Ch40FirstCut()
+{
+/* 
+	He gives this expression for result (== m**3)
+	result =
+		(c_0 * m_s_0 * invmod(m_s_0, n_0)) +
+		(c_1 * m_s_1 * invmod(m_s_1, n_1)) +
+		(c_2 * m_s_2 * invmod(m_s_2, n_2)) mod N_012
+
+	where:
+	c_0, c_1, c_2 are the three respective residues mod n_0, n_1, n_2
+
+	m_s_n(for n in 0, 1, 2) are the product of the moduli
+	EXCEPT n_n-- - ie, m_s_1 is n_0 * n_2
+
+	N_012 is the product of all three moduli
+	=================================================
+
+	See derivation p. 21, Koblitz.
+*/
+
+	// Problems encountered:
+	// I was trying to get away with using integers, which means the message and the primes can't get very big
+	// I thought I could just manually select 3 pq pairs, but it was hard to find 3 different pairs that
+	// met both the Phi condition and being pairwise coprime.
+	// So eventually I will rewrite this using BIGNUMs.
+
+	// We want three different n(i) that can be used with e = 3
+	//int p[3] = { 1709, 1487, 1553 };
+	//int q[3] = { 2207, 2027, 2027 };
+	int p[3] = { 59, 97, 53 };
+	int q[3] = { 41, 37, 23 };
+	int e = 3;
+	int n[3] = { 0 };
+	int phi_n[3] = { 0 };
+	int msg = 187;
+	int c[3] = { 0 };
+	int invm[3] = { 0 };
+
+
+
+	for (size_t ii = 0; ii < 3; ++ii)
+	{
+		n[ii] = p[ii] * q[ii];
+		phi_n[ii] = (p[ii] - 1)*(q[ii] - 1);
+		if (gcd(e, phi_n[ii]) == 1)
+		{
+			std::cout << "Pair " << ii << " ==> OK" << std::endl;
+		}
+		else
+		{
+			std::cout << "Pair " << ii << " ==> NO GOOD" << std::endl;
+		}
+		if (msg > n[ii])
+		{
+			std::cout << "Message is too big, break it in chunks" << std::endl;
+		}
+
+		// Encrypt the message with this key
+		c[ii] = modexp(msg, e, n[ii]);
+
+	}
+
+	// The n[ii] need to be pairwise coprime
+	if (gcd(n[0], n[1]) != 1)
+	{
+		std::cout << "n[0], n[1]" << " ==> NOT coprime" << std::endl;
+	}
+	if (gcd(n[0], n[2]) != 1)
+	{
+		std::cout << "n[0], n[2]" << " ==> NOT coprime" << std::endl;
+	}
+	if (gcd(n[1], n[2]) != 1)
+	{
+		std::cout << "n[0], n[1]" << " ==> NOT coprime" << std::endl;
+	}
+
+	// Note we haven't recovered d, which would requite an inverse exponential. 
+	// Here we are just taking the inverse of a product of two keys 
+	// If there we any failures in the coprime check, taking inverses will fail here.
+	bool bInv = invmod(n[1] * n[2], n[0], invm[0]);
+	if (!bInv)
+	{
+		std::cout << "Failed getting inverse for n[1], n[2] mod n[0]" << std::endl;
+	}
+	bInv = invmod(n[0] * n[2], n[1], invm[1]);
+	if (!bInv)
+	{
+		std::cout << "Failed getting inverse for n[0], n[2] mod n[1]" << std::endl;
+	}
+	bInv = invmod(n[0] * n[1], n[2], invm[2]);
+	if (!bInv)
+	{
+		std::cout << "Failed getting inverse for n[0], n[1] mod n[2]" << std::endl;
+	}
+
+	int msg_pow3 = (c[0] * n[1] * n[2] * invm[0]) + (c[1] * n[0] * n[2] * invm[1]) + (c[2] * n[0] * n[1] * invm[2]);
+
+	std::cout << "Msg sent = " << msg << std::endl;
+	std::cout << "Msg cubed = " << msg_pow3 << std::endl;
+
+
+	return true;
+}
+
+bool Challenges::Set5Ch40()
+{
+
+	return false;
 }

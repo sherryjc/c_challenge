@@ -88,13 +88,20 @@ namespace Backend {
 		bool EncryptHex(const byte_string& plaintxt, byte_string& ctHex);
 		bool DecryptHex(const byte_string& ctHex, byte_string& plaintxt);
 
+		void PublicKey(BIGNUM** ppE, BIGNUM** ppN);
+
 	private:
 		Oracle6();
 		~Oracle6();
 		void _Init(int nChallenge);
 		void _InitRSA();
 
+		int CheckCache(const byte_string& ct);   // returns 0 if not found, otherwise expiration time
+		void AddCache(const byte_string& ct);
+
 		JRSA* m_pRSA{ nullptr };
+
+		std::unordered_map<byte_string, int>  m_cipherCache;  // hash of ciphertexts -> time (not used)
 	};
 
 }

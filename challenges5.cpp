@@ -127,7 +127,7 @@ void _OpenSSLLibTest()
 
 	// NIST-recommended number given in the exercise (377 decimal digits, roughly equivalent to 1252 bits)
 	BIGNUM* p = nullptr;
-	BN_dec2bn(&p,
+	BN_hex2bn(&p,
 		"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"
 		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"
 		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"
@@ -147,10 +147,6 @@ void _OpenSSLLibTest()
 	std::cout << "NIST p mod 50-bit prime = " << BN_bn2dec(pMod50bit) << std::endl;
 
 
-	BIGNUM* g = BN_new();
-	BN_set_word(g, 2);
-
-
 	BN_free(pA);
 	BN_free(pB);
 	BN_free(pM);
@@ -161,7 +157,6 @@ void _OpenSSLLibTest()
 	BN_free(nPrime30);
 	BN_free(nPrime50);
 	BN_free(p);
-	BN_free(g);
 	BN_CTX_free(pCtx);
 }
 
@@ -173,7 +168,7 @@ bool Challenges::Set5Ch33()
 	std::cout << "Begin 5Ch33" << std::endl;
 	// NIST-recommended number given in the exercise (377 decimal digits, roughly equivalent to 1252 bits)
 	BIGNUM* p = nullptr;
-	BN_dec2bn(&p,
+	BN_hex2bn(&p,
 		"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"
 		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"
 		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"
@@ -190,28 +185,21 @@ bool Challenges::Set5Ch33()
 	const byte_string seedStr = { 0xd0, 0x96, 0xd0, 0x95, 0xd0, 0x9b, 0xd0, 0x90, 0xd0, 0x9d, 0xd0, 0x9d, 0xd0, 0xac, 0xd0, 0x86, 0xd0, 0x98 };
 	RAND_seed(seedStr.c_str(), (int)seedStr.length());
 
-	// TODO
-	// I wanted a, b to be random in the range (0, p)
+	// Want a, b to be random in the range (0, p)
 	// But p seems to exceed the maximum allowed by BN_rand_range, although I have seen it work - but usually it fails.
 	// So I guess I need to build up a value from multiple calls to BN_rand_range.
 	// For now just pick a smaller range.
-	BIGNUM* rngUpperBnd = nullptr;
-	// We know this value worked from the test code above
-	BN_dec2bn(&rngUpperBnd, "2988348162058574136915891421498819466320163312926952423791023078876139");
 
 	BIGNUM* a = BN_new();
-	//int rc = BN_rand_range(a, p);
-	int rc = BN_rand_range(a, rngUpperBnd);
+	int rc = BN_rand_range(a, p);
 	_CheckBNrc(rc);
 	std::cout << "random number a = " << BN_bn2dec(a) << std::endl;
 
 	BIGNUM* b = BN_new();
-	//rc = BN_rand_range(b, p);
-	rc = BN_rand_range(b, rngUpperBnd);
+	rc = BN_rand_range(b, p);
 	_CheckBNrc(rc);
 	std::cout << "random number b = " << BN_bn2dec(b) << std::endl;
 
-	// However, this is also having trouble, presumably p is too large?
 	BIGNUM* ga = BN_new();
 	rc = BN_mod_exp(ga, g, a, p, ctx);  // ga = g^a mod p
 	_CheckBNrc(rc);

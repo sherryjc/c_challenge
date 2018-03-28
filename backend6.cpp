@@ -1,6 +1,7 @@
 
 #include "backend.h"
 #include "rsa.h"
+#include "sha256.h"
 
 static Backend::Oracle6* s_pOnlyOracle6 = nullptr;
 
@@ -56,6 +57,17 @@ bool Backend::Oracle6::DecryptBlock(const byte_string& ciphertxt, byte_string& p
 {
 	if (!m_pRSA) return false;
 
+	byte hash_out[SHA256_BLOCK_SIZE+1];
+	SHA256(ciphertxt.c_str(), ciphertxt.length(), hash_out, _countof(hash_out));
+	hash_out[SHA256_BLOCK_SIZE] = '\0';
+	byte_string hash_str(hash_out);
+
+	int expiration = CheckCache(hash_str);
+
+	// For now, no check of expiration. If it's in the cache already, refuse to provide the decryption.
+	if (0 != expiration) return false;
+
+	AddCache(hash_str);
 	return m_pRSA->DecryptBlock(ciphertxt, plaintxt);
 }
 
@@ -71,5 +83,28 @@ bool Backend::Oracle6::DecryptHex(const byte_string& ctHex, byte_string& plaintx
 	if (!m_pRSA) return false;
 
 	return m_pRSA->DecryptHex(ctHex, plaintxt);
+}
+
+int Backend::Oracle6::CheckCache(const byte_string& key)
+{
+	auto search = m_cipherCache.find(key);
+	if (search != m_cipherCache.end())
+	{
+		return search->second;
+	}
+	return 0;
+}
+
+void Backend::Oracle6::AddCache(const byte_string& key)
+{
+	static int s_currentTime = 34745;
+	m_cipherCache.insert({key, s_currentTime++});
+}
+
+void Backend::Oracle6::PublicKey(BIGNUM** ppE, BIGNUM** ppN)
+{
+	if (!m_pRSA) return;
+
+	m_pRSA->PublicKey(ppE, ppN);
 }
 

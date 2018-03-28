@@ -16,7 +16,6 @@ JRSA::~JRSA()
 void JRSA::_Init()
 {
 	m_pCtx = BN_CTX_new();
-	BN_CTX* m_pCtx = BN_CTX_new();
 
 	// Get the primes p and q
 	BIGNUM* p = BN_new();
@@ -84,26 +83,13 @@ void JRSA::_Init()
 
 }
 
-static void _DumpBin(BIGNUM* pN)
-{
-	size_t nBytes = BN_num_bytes(pN);
-	std::unique_ptr<byte[]> pBin(new byte[nBytes + 1]);
-	byte* p = pBin.get();
-	int rc = BN_bn2bin(pN, p);
-	if (0 == rc) { std::cout << "Error, BN_bn2bin" << std::endl; }
-	p[nBytes] = '\0';
-	std::cout << "Length " << nBytes << std::endl;
-	dbg_utils::displayHex(p);
-
-}
-
 static void _Compare(BIGNUM* p1, BIGNUM* p2)
 {
 	if (BN_cmp(p1, p2) != 0) 
 	{ 
 		std::cout << "Whoa Nellie! The two numbers are different" << std::endl; 
-		_DumpBin(p1);
-		_DumpBin(p2);
+		dbg_utils::dumpBN("p1: ", p1);
+		dbg_utils::dumpBN("p2: ", p2);
 	}
 	else
 	{
@@ -125,6 +111,7 @@ bool JRSA::EncryptBlock(const byte_string& plaintxt, byte_string& ciphertxt, siz
 	//   - encrypt one block
 	//   - return how many characters at the start of the string were encrypted
 	//     (that is, the next call should advance the start of the string by that amount)
+	// This might all be unnecessary, maybe you just fail if the block is too big?
 
 	byte_string block = plaintxt.length() > c_nBlockSize ? plaintxt.substr(0, c_nBlockSize) : plaintxt;
 
@@ -142,9 +129,7 @@ bool JRSA::EncryptBlock(const byte_string& plaintxt, byte_string& ciphertxt, siz
 	byte* p = pBin.get();
 	rc = BN_bn2bin(pMsg, p);
 	if (0 == rc) return false;
-	p[nBytes] = '\0';
-
-	ciphertxt += p;
+	io_utils::FillByteString(ciphertxt, p, nBytes);
 
 	BN_free(pMsg);
 
@@ -172,8 +157,7 @@ bool JRSA::DecryptBlock(const byte_string& ciphertxt, byte_string& plaintxt)
 	byte* p = pBin.get();
 	rc = BN_bn2bin(pMsg, p);
 	if (0 == rc) return false;
-	p[nBytes] = '\0';
-	plaintxt += p;
+	io_utils::FillByteString(plaintxt, p, nBytes);
 
 	BN_free(pMsg);
 
@@ -229,5 +213,11 @@ bool JRSA::DecryptHex(const byte_string& ctHex, byte_string& plaintext)
 	BN_free(pMsg);
 
 	return true;
+}
+
+void JRSA::PublicKey(BIGNUM** ppE, BIGNUM** ppN)
+{
+	*ppE = BN_dup(m_pE);
+	*ppN = BN_dup(m_pN);
 }
 

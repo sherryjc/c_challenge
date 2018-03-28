@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stdafx.h"
+#include <openssl/bn.h>
 
 using byte = unsigned char;
 using byte_string = std::basic_string<byte>;
@@ -41,6 +42,7 @@ namespace io_utils {
 
 	byte* byteCopy(byte* pDst, size_t szDst, const byte* pSrc, size_t szSrc);
 	byte* byteCopyRepeated(byte* pDst, size_t szDst, const char c, size_t szSrc);
+	void FillByteString(byte_string& str, const byte* pInp, size_t inpSz);
 
 	bool byteCompare(const byte* p1, const byte* p2, size_t n);
 	bool byteCompare(const byte_string& s1, const byte_string& s2);
@@ -67,6 +69,7 @@ namespace dbg_utils {
 	void formatHex(std::string& deststr,  const byte* pBytes, size_t cnt);
 	void formatHex(std::string& deststr, const byte_string& str);
 	void displayByteStrAsCStr(const byte_string& str);
+	void dumpBN(const std::string& prefix, BIGNUM* p);
 }
 
 namespace crypto_utils {

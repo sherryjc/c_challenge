@@ -16,6 +16,8 @@ public:
 	bool EncryptHex(const byte_string& plaintext, byte_string& ctHex);
 	bool DecryptHex(const byte_string& ctHex, byte_string& plaintext);
 
+	void PublicKey(BIGNUM** ppE, BIGNUM** ppN);
+
 private:
 	void _Init();
 
@@ -30,7 +32,7 @@ private:
 	// Public key E
 	BIGNUM* m_pE = nullptr;
 
-	static const int c_nPrimeBits{ 40 };
-	static const size_t c_nBlockSize{ sizeof(uint64_t) };
+	static const int c_nPrimeBits{ 512 };
+	static const size_t c_nBlockSize{ 256 };
 
 };

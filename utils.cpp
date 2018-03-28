@@ -216,6 +216,20 @@ byte* io_utils::byteCopyRepeated(byte* pDst, size_t szDst, const char c, size_t 
 
 }
 
+// byte* pInp - points to an array of bytes of size inpSz
+// Does what this is intended to do:
+// byte_string str = p; 
+// The problem with this last statement is that there may be 0x00
+// values in the byte array!
+
+void io_utils::FillByteString(byte_string& str, const byte* pInp, size_t inpSz)
+{
+	while (inpSz-- > 0)
+	{
+		str += *pInp++;
+	}
+}
+
 bool io_utils::byteCompare(const byte* p1, const byte* p2, size_t n)
 {
 	if (!p1 || !p2 || n == 0) {
@@ -382,6 +396,23 @@ void dbg_utils::displayByteStrAsCStr(const byte_string& str)
 	byte* pRawBytes = const_cast<byte *>(dispStr.c_str());
 	pRawBytes[dispStr.length() - 1] = '\0';
 	std::cout << pRawBytes << std::endl;
+}
+
+void dbg_utils::dumpBN(const std::string& prefix, BIGNUM* pN)
+{
+	std::cout << prefix;
+	size_t nBytes = BN_num_bytes(pN);
+	std::unique_ptr<byte[]> pBin(new byte[nBytes + 1]);
+	byte* p = pBin.get();
+	int rc = BN_bn2bin(pN, p);
+	if (0 == rc) 
+	{ 
+		std::cout << "Error, BN_bn2bin" << std::endl; 
+		return;
+	}
+	p[nBytes] = '\0';
+	std::cout << "Number of bytes: " << nBytes << std::endl;
+	dbg_utils::displayHex(p, nBytes);
 }
 
 

@@ -65,6 +65,7 @@ void JRSA::_Init()
 
 	// compute d = invmod(e, phi(n)), that is:  d = inv(e) modulo phi(n)
 	// this means find d such that d*e mod phi(n) = 1
+	m_pD = BN_new();
 	BIGNUM* pRc = BN_mod_inverse(m_pD, m_pE, phi, m_pCtx);
 	if (!pRc)
 	{
@@ -83,45 +84,150 @@ void JRSA::_Init()
 
 }
 
-bool JRSA::Encrypt(const byte_string& plaintext, byte_string& ciphertext)
+static void _DumpBin(BIGNUM* pN)
 {
-	const byte* pPlaintxt = plaintext.c_str();
+	size_t nBytes = BN_num_bytes(pN);
+	std::unique_ptr<byte[]> pBin(new byte[nBytes + 1]);
+	byte* p = pBin.get();
+	int rc = BN_bn2bin(pN, p);
+	if (0 == rc) { std::cout << "Error, BN_bn2bin" << std::endl; }
+	p[nBytes] = '\0';
+	std::cout << "Length " << nBytes << std::endl;
+	dbg_utils::displayHex(p);
 
-	byte m_workingBuf[c_nBlockSize + 1]{ 0 };
+}
 
+static void _Compare(BIGNUM* p1, BIGNUM* p2)
+{
+	if (BN_cmp(p1, p2) != 0) 
+	{ 
+		std::cout << "Whoa Nellie! The two numbers are different" << std::endl; 
+		_DumpBin(p1);
+		_DumpBin(p2);
+	}
+	else
+	{
+		std::cout << "The two numbers are the same" << std::endl;
+	}
+}
+
+bool JRSA::EncryptBlock(const byte_string& plaintxt, byte_string& ciphertxt, size_t& cnt)
+{
+	BIGNUM* pMsg = BN_new();
+	ciphertxt.clear();
+	cnt = 0;
+
+	// Encrypt one block of plaintext.
+	// Block size - the restriction is to keep the largest possible value smaller than the modulus N.
+	// Problem: if you don't keep track of the encrypted sizes of the individual blocks,
+	// you won't know where to partition the ciphertext when you try to decrypt.
+	// So we:
+	//   - encrypt one block
+	//   - return how many characters at the start of the string were encrypted
+	//     (that is, the next call should advance the start of the string by that amount)
+
+	byte_string block = plaintxt.length() > c_nBlockSize ? plaintxt.substr(0, c_nBlockSize) : plaintxt;
+
+	BIGNUM* pRet = BN_bin2bn(block.c_str(), (int)block.length(), pMsg);
+	if (!pRet || !pMsg) return false;
+
+	if (BN_cmp(pMsg, m_pN) > 0) return false;
+
+	// Encrypt: c = m**e % n
+	int rc = BN_mod_exp(pMsg, pMsg, m_pE, m_pN, m_pCtx);
+	if (0 == rc) return false;
+
+	size_t nBytes = BN_num_bytes(pMsg);
+	std::unique_ptr<byte[]> pBin(new byte[nBytes + 1]);
+	byte* p = pBin.get();
+	rc = BN_bn2bin(pMsg, p);
+	if (0 == rc) return false;
+	p[nBytes] = '\0';
+
+	ciphertxt += p;
+
+	BN_free(pMsg);
+
+	cnt = block.length();
+	return true;
+}
+
+bool JRSA::DecryptBlock(const byte_string& ciphertxt, byte_string& plaintxt)
+{
+	plaintxt.clear();
+	BIGNUM* pMsg = BN_new();
+
+	// Decrypt the ciphertext a block at a time.
+	// The ciphertext passed in corresponds to one block of encrypted plaintext.
+
+	BIGNUM* pRet = BN_bin2bn(ciphertxt.c_str(), (int)ciphertxt.length(), pMsg);
+	if (!pRet || !pMsg) return false;
+
+	// Decrypt: m = c**d % n
+	int rc = BN_mod_exp(pMsg, pMsg, m_pD, m_pN, m_pCtx);
+	if (0 == rc) return false;
+
+	size_t nBytes = BN_num_bytes(pMsg);
+	std::unique_ptr<byte[]> pBin(new byte[nBytes + 1]);
+	byte* p = pBin.get();
+	rc = BN_bn2bin(pMsg, p);
+	if (0 == rc) return false;
+	p[nBytes] = '\0';
+	plaintxt += p;
+
+	BN_free(pMsg);
+
+	return true;
+}
+
+bool JRSA::EncryptHex(const byte_string& plaintext, byte_string& ctHex)
+{
 
 	// First block - TODO, do all blocks
-	byte_string block = plaintext.substr(0, c_nBlockSize);
-	unsigned long long ull = dbg_utils::toULongLong(block);
+	byte_string block = plaintext.substr(0, sizeof(uint64_t));
 
+	// Approach 1 - via largest int we can handle
+	uint64_t val = 0;
+	io_utils::BytesBEToUInt64(block.c_str(), block.length(), val);
 	BIGNUM* pMsg = BN_new();
-	BN_set_word(pMsg, ull);
+	BN_set_word(pMsg, val);
 
-	std::cout << "Msg as bignum = " << BN_bn2hex(pMsg) << std::endl;
+	// Approach 2 - via hex-encoded string
+
+
 	if (BN_cmp(pMsg, m_pN) > 0)
 	{
-		std::cout << "Msg block too big! = " << std::endl;
+		std::cout << "Msg block too big!" << std::endl;
 		return false;
 	}
+
 	// Encrypt: c = m**e % n
 	int rc = BN_mod_exp(pMsg, pMsg, m_pE, m_pN, m_pCtx);
 	if (0 == rc) { std::cout << "Error, BN_mod_exp" << std::endl; return false; }
 
-	// Iterate through the bytes of pMsg
-	// TODO - figure out how
-	size_t nBytes = BN_num_bytes(pMsg);
-	for (size_t ii = 0; ii < nBytes; ++ii)
-	{
-		//ciphertext += *pBytes++;
-	}
+	char* pC = BN_bn2hex(pMsg);
+	ctHex = reinterpret_cast<byte*>(pC);
+	OPENSSL_free(pC);
 	BN_free(pMsg);
 	return true;
 }
 
-bool JRSA::Decrypt(const byte_string& ciphertext, byte_string& plaintext)
+bool JRSA::DecryptHex(const byte_string& ctHex, byte_string& plaintext)
 {
-	// Decrypt: m = c**d % n
-	// int msg2 = modexp(c, d, n);
 
-	return false;
+	BIGNUM* pMsg = nullptr;
+	int rc = BN_hex2bn(&pMsg, reinterpret_cast<const char *>(ctHex.c_str()));
+	if (0 == rc) { std::cout << "Error, BN_hex2bn" << std::endl; return false; }
+
+	// Decrypt: m = c**d % n
+	rc = BN_mod_exp(pMsg, pMsg, m_pD, m_pN, m_pCtx);
+	if (0 == rc) { std::cout << "Error, BN_mod_exp" << std::endl; return false; }
+
+	char* pC = BN_bn2hex(pMsg);
+	plaintext = reinterpret_cast<byte*>(pC);
+	OPENSSL_free(pC);
+	BN_free(pMsg);
+
+	return true;
 }
+

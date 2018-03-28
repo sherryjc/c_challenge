@@ -83,7 +83,10 @@ namespace Backend {
 	class Oracle6 {
 	public:
 		static Oracle6* Get(int nChallenge);
-		bool Encrypt(const byte_string& plaintxt, byte_string& ciphertxt);
+		bool EncryptBlock(const byte_string& plaintxt, byte_string& ciphertxt, size_t& cnt);
+		bool DecryptBlock(const byte_string& ciphertxt, byte_string& plaintxt);
+		bool EncryptHex(const byte_string& plaintxt, byte_string& ctHex);
+		bool DecryptHex(const byte_string& ctHex, byte_string& plaintxt);
 
 	private:
 		Oracle6();

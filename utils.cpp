@@ -5,6 +5,10 @@
 #include <unordered_set>
 #include <stdlib.h>
 #include <vector>
+#include <sstream>
+#include <iosfwd>
+#include <iostream>
+#include <iomanip>
 
 
 static byte _hexByte(char c)
@@ -273,10 +277,29 @@ void io_utils::int64ToBytesLE(int64_t paramInt, byte* pBytes, size_t byteCnt)
 	}
 }
 
-void io_utils::BytesBEToInt32(byte* pBytes, size_t byteCnt, int32_t& result)
+void io_utils::BytesBEToInt32(const byte* pBytes, size_t byteCnt, int32_t& result)
 {
 	if (byteCnt < 4) return;
 	result = (pBytes[0] << 24) + (pBytes[1] << 16) + (pBytes[2] << 8) + pBytes[3];
+}
+
+void io_utils::BytesBEToUInt64(const byte* pBytes, size_t byteCnt, uint64_t& result)
+{
+	result = 0;
+	size_t nBytes = byteCnt > sizeof(uint64_t) ? sizeof(uint64_t) : byteCnt;
+	for (size_t ii = 0; ii < byteCnt ; ++ii)
+	{
+		result = (result << 8) + *pBytes++;
+	}
+}
+
+void io_utils::int32ToBytesBE(int32_t paramInt, byte* pBytes, size_t byteCnt)
+{
+	if (byteCnt < 4) return;
+
+	for (int i = 0; i < 4; ++i) {
+		pBytes[3 - i] = static_cast<byte>(paramInt >> (i * 8));
+	}
 }
 
 bool io_utils::GetCurrentTimeUnixFmt(int64_t *pUnixTime)
@@ -338,6 +361,20 @@ void dbg_utils::displayHex(const byte_string& str)
 	dbg_utils::displayHex(str.c_str(), str.length());
 }
 
+void dbg_utils::formatHex(std::string& destStr, const byte* pBytes, size_t cnt)
+{
+	std::ostringstream fmtStr;
+	for (size_t i = 0; i < cnt; i++) {
+		fmtStr << std::setw(2) << std::hex << pBytes[i];   // C++ way to do sprintf_s " %02x"  ?? not yet working
+	}
+	destStr = fmtStr.str();
+}
+
+void dbg_utils::formatHex(std::string& destStr, const byte_string& str)
+{
+	dbg_utils::formatHex(destStr, str.c_str(), str.length());
+}
+
 void dbg_utils::displayByteStrAsCStr(const byte_string& str)
 {
 	// Just handles the fact that byte strings are not null terminated
@@ -347,47 +384,6 @@ void dbg_utils::displayByteStrAsCStr(const byte_string& str)
 	std::cout << pRawBytes << std::endl;
 }
 
-int dbg_utils::toInt(const std::string& str)
-{
-	// INT_MAX       2147483647    // maximum (signed) int value
-	int rc = 0;
-	int next_rc = 0;
-	for (auto c : str)
-	{
-		next_rc = (rc << 8) + c;
-		if (next_rc > INT_MAX) break;
-		rc = next_rc;
-	}
-	return rc;
-}
-
-long long int dbg_utils::toLongLong(const std::string& str)
-{
-	// LLONG_MAX     9223372036854775807 i64       // maximum signed long long int value
-	int rc = 0;
-	int next_rc = 0;
-	for (auto c : str)
-	{
-		next_rc = (rc << 8) + c;
-		if (next_rc > LLONG_MAX) break;
-		rc = next_rc;
-	}
-	return rc;
-}
-
-unsigned long long dbg_utils::toULongLong(const byte_string& str)
-{
-	// ULLONG_MAX    0xffffffffffffffffui64       // maximum unsigned long long int value
-	int rc = 0;
-	int next_rc = 0;
-	for (auto c : str)
-	{
-		next_rc = (rc << 8) + c;
-		if (next_rc > ULLONG_MAX) break;
-		rc = next_rc;
-	}
-	return rc;
-}
 
 
 /*****************************************/

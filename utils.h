@@ -46,9 +46,11 @@ namespace io_utils {
 	bool byteCompare(const byte_string& s1, const byte_string& s2);
 	size_t nBytesCompare(const byte* p1, const byte* p2, size_t nMax);
 
-	// Big-endian
+	// Big-endian byte strings <-> ints
 	void int64ToBytesBE(int64_t paramInt, byte* pBytes, size_t byteCnt);
-	void BytesBEToInt32(byte* pBytes, size_t byteCnt, int32_t& result);
+	void BytesBEToUInt64(const byte* pBytes, size_t byteCnt, uint64_t& result);
+	void BytesBEToInt32(const byte* pBytes, size_t byteCnt, int32_t& result);
+	void int32ToBytesBE(int32_t paramInt, byte* pBytes, size_t byteCnt);
 
 		// Little-endian
 	void int64ToBytesLE(int64_t paramInt, byte* pBytes, size_t byteCnt);
@@ -62,11 +64,9 @@ namespace dbg_utils {
 	void displayBytes(const char* pIntroStr, const byte* pBytes, size_t cnt);
 	void displayHex(const byte* pBytes, size_t cnt);
 	void displayHex(const byte_string& str);
+	void formatHex(std::string& deststr,  const byte* pBytes, size_t cnt);
+	void formatHex(std::string& deststr, const byte_string& str);
 	void displayByteStrAsCStr(const byte_string& str);
-
-	int toInt(const std::string& str);
-	long long int toLongLong(const std::string& str);
-	unsigned long long toULongLong(const byte_string& str);
 }
 
 namespace crypto_utils {

@@ -10,8 +10,11 @@ public:
 	JRSA();
 	~JRSA();
 
-	bool Encrypt(const byte_string& plaintext, byte_string& ciphertext);
-	bool Decrypt(const byte_string& ciphertext, byte_string& plaintext);
+	bool EncryptBlock(const byte_string& plaintxt, byte_string& ciphertxt, size_t& cnt);
+	bool DecryptBlock(const byte_string& cipherBlk, byte_string& plaintext);
+
+	bool EncryptHex(const byte_string& plaintext, byte_string& ctHex);
+	bool DecryptHex(const byte_string& ctHex, byte_string& plaintext);
 
 private:
 	void _Init();
@@ -28,8 +31,6 @@ private:
 	BIGNUM* m_pE = nullptr;
 
 	static const int c_nPrimeBits{ 40 };
-	static const size_t c_nBlockSize{ 16 };  // How many characters we work with at a time
-
-	byte m_workingBuf[c_nBlockSize + 1]{ 0 };
+	static const size_t c_nBlockSize{ sizeof(uint64_t) };
 
 };

@@ -77,8 +77,12 @@ void _bad(const std::string& s)
 	std::cout << s << " failed" << std::endl;
 }
 
+void cubeRootTest();
+
 bool Challenges::Set6Ch41()
 {
+	cubeRootTest();
+
 	Backend::Oracle6* pOracle = Backend::Oracle6::Get(41);
 	const byte_string plaintxt = reinterpret_cast<byte*>("{ time: 1356304276, SSN: 123-4567-89 }");
 	byte_string cipher;
@@ -99,11 +103,11 @@ bool Challenges::Set6Ch41()
 	//  c = m**e % n
 	//  m is the message we want to recover
 	//  Compute c2 = ((s**e % n) * c) % n
-	//  Because these messages are in an Abelian group (integers modulo n), (ab)**n = (a**n)(b**n)
+	//  Because these messages are in an Abelian group (integers with modulo n addition), (ab)**n = (a**n)(b**n)
 	//  c2 = ((s**e % n) * (m**e % n) % n
 	//     = (sm)**e % n
-	//  Submit c2 to the decryption Oracle, get back (sm) = p2
-	//  Then m = invmod(s, n)* p2
+	//  Submit c2 to the decryption Oracle, get back (sm) = p'
+	//  Then m = invmod(s, n)* p'
 
 
 	BN_CTX* pCtx = BN_CTX_new();
@@ -190,4 +194,55 @@ bool Challenges::Set6Ch41()
 	BN_CTX_free(pCtx);
 
 	return true;
+}
+
+
+// shifting nth-root algorithm for n = 3
+// integer results only - you get the floor of the actual root
+
+uint32_t icbrt64(uint64_t x) {
+	int s;
+	uint32_t y;
+	uint64_t b;
+
+	y = 0;
+	for (s = 63; s >= 0; s -= 3) {
+		y += y;
+		b = 3 * y*((uint64_t)y + 1) + 1;
+		if ((x >> s) >= b) {
+			x -= b << s;
+			y++;
+		}
+	}
+	return y;
+}
+
+
+void cubeRootTest()
+{
+	uint32_t res = icbrt64(64);
+
+	uint32_t max = 2642245; // floor(cbrt(2^64))
+
+	for (uint32_t i = 1; i <= max; ++i) { // 
+		uint64_t v = (uint64_t)i*i*i;
+		uint64_t cb = icbrt64(v);
+
+		if (cb != i) {
+			std::cout << "err1! i=" << i << "cb=" << cb << std::endl;
+			break;
+		}
+
+		cb = icbrt64(v - 1);
+		if (cb != i - 1) {
+			std::cout << "err2! i-1=" << i-1 << "cb=" << cb << std::endl;
+			break;
+		}
+	}
+
+	// check max value
+	uint64_t v = ~0ull;
+	if (icbrt64(v) != max) {
+		std::cout << "err3!" << std::endl;
+	}
 }
